@@ -118,6 +118,6 @@ class TestDefinitionRepository():
             generate_reverse_rule=True, action='accept'
         )
         host_object = repository.get_host_object(hostname='host1', include_group=True)
-        assert_that(len(host_object)).is_equal_to(1)
+        assert_that(host_object).is_equal_to(dict(hostname='host1', ipaddress='192.168.0.1/24'))
         port_object = repository.get_port_object(portname='udp53', include_group=True)
-        assert_that(len(port_object)).is_equal_to(1)
+        assert_that(port_object).is_equal_to(dict(portname='udp53', protocol='udp', port=53))

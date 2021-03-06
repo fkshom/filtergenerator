@@ -2,100 +2,12 @@ import sys
 import io
 import yaml
 import ipaddress
+import argparse
 from pprint import pprint as pp
+from .repository import DefinitionRepository
 
-definition_yaml_text = """
-HostObjects:
-    DNSServer1: 10.0.1.50
-    DNSServer2: 10.0.2.50
-    MailServer_eth0: 10.0.3.10
-    MailServer_eth1: 10.0.4.10
-    ClientNW: 192.168.0.0/24
 
-HostGroups:
-    DNSServers:
-    - DNSServer1
-    - 10.0.1.51
-    - DNSServer8
-    - 10.0.2.51    
 
-PortObjects:
-    DefaultSourcePort1:
-      protocol: [tcp, udp]
-      port: 32765-65535
-    udp53:
-      protocol: udp
-      port: 53
-    tcp53:
-      protocol: tcp
-      port: 53
-
-PortGroups:
-    dns:
-    - udp53 
-    - { protoco: tcp, port: 53 }
-
-rules:
-    - name: ClientNWのインターネット接続用
-      srcaddr: ClientNW
-      srcport: DefaultSourcePort1
-      dstaddr:
-      - DNSServers
-      - DNSServer1111
-      dstport:
-      - { protocol: tcp, port: 53 }
-      - udp53
-      action: permit
-      return_rule: true
-      order_priority: 50
-"""
-
-class Router1():
-    def __init__(self):
-        self.interfaces = []
-        self.rules = []
-
-    def assign_interface(self, interfacename, filtername, address):
-        self.interfaces.append(
-            dict(interfacename=interfacename, filtername=filtername, address=address)
-        )
-
-    def set_host_object_repository(self, func):
-        self.host_object_repository = func
-
-    def set_port_object_repository(self, func):
-        self.port_object_repository = func
-
-    def add_rule(self, generate_return_rule=True, order_priority=50, **kwargs):
-        self.rules.append((order_priority, kwargs))
-
-    def _generate_rule(self, **kwargs):
-        pp(kwargs)
-        result = []
-        for interface in self.interfaces:
-            # 当irbに入ってくるパケットに対するルール
-            if ipaddress.IPv4Network(kwargs['srcaddr']).subnet_of(ipaddress.IPv4Interface(interface['address']).network):
-                result.append(
-                    f"set configuration firewall filter {interface['filtername']} term {kwargs['name']} source-address {kwargs['srcaddr']}"
-                )
-
-        # result = [
-        #     "set configuration firewall filter irb100in term TERM1 source-address 1.1.1.1",
-        #     "set configuration firewall filter irb100in term TERM1 source-port 32765-65535",
-        #     "set configuration firewall filter irb100in term TERM1 destination-address 8.8.8.8",
-        #     "set configuration firewall filter irb100in term TERM1 destination-port 53",
-        #     "set configuration firewall filter irb100in term TERM1 protocol: udp",
-        #     "set configuration firewall filter irb100in term TERM1 action accept",
-        # ]
-        # IPv4Network('192.168.0.2').subnet_of( IPv4Interface('192.168.0.1/24').network)
-        return result
-
-    def create_filter_configuration(self):
-        result = []
-        for rule in self.rules:
-            result.extend(self._generate_rule(**rule[1]))
-
-        return result
 
 
 class VDS1():
@@ -127,8 +39,33 @@ class VDS1():
             result.extend(self._generate_rule(**rule[1]))
         return result
 
-def main():
-    definition_raw = yaml.safe_load(definition_yaml_text)
+def gen_simple_repository():
+    repository = DefinitionRepository()
+    repository.add_host_object(hostname='host1', )
+
+def command_genvds(args):
+    repository = DefinitionRepository()
+    pass
+
+def command_genrouter(args):
+    repository = DefinitionRepository()
+    pass
+
+def main(args=None):
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers()
+    
+    parser_view = subparsers.add_parser('genrouter')
+    parser_view.add_argument('filename', nargs='?', default='-')
+    parser_view.set_defaults(handler=command_genrouter)
+
+    args = parser.parse_args(args)
+    if hasattr(args, 'handler'):
+        return args.handler(args)
+    else:
+        return parser.print_help()
+
+    # definition_raw = yaml.safe_load(definition_yaml_text)
     # config = DefinitionRepository(config_raw)
     # config.rules
     # config.port_objects

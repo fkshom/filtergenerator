@@ -30,7 +30,14 @@ class DefinitionRepository():
         for host_object in self.host_objects:
             if hostname == host_object['hostname']:
                 return host_object
-    
+        raise ValueError()
+
+    def get_port_object(self, portname, include_group=True):
+        for port_object in self.port_objects:
+            if portname == port_object['portname']:
+                return port_object
+        raise ValueError()
+
     def expand_object(self, objectname):
         pass
         
