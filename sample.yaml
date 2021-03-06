@@ -1,0 +1,43 @@
+HostObjects:
+    DNSServer1: 10.0.1.50
+    DNSServer2: 10.0.2.50
+    MailServer_eth0: 10.0.3.10
+    MailServer_eth1: 10.0.4.10
+    ClientNW: 192.168.0.0/24
+
+HostGroups:
+    DNSServers:
+    - DNSServer1
+    - 10.0.1.51
+    - DNSServer8
+    - 10.0.2.51    
+
+PortObjects:
+    DefaultSourcePort1:
+      protocol: [tcp, udp]
+      port: 32765-65535
+    udp53:
+      protocol: udp
+      port: 53
+    tcp53:
+      protocol: tcp
+      port: 53
+
+PortGroups:
+    dns:
+    - udp53 
+    - { protoco: tcp, port: 53 }
+
+rules:
+    - name: ClientNWのインターネット接続用
+      srcaddr: ClientNW
+      srcport: DefaultSourcePort1
+      dstaddr:
+      - DNSServers
+      - DNSServer1111
+      dstport:
+      - { protocol: tcp, port: 53 }
+      - udp53
+      action: permit
+      return_rule: true
+      order_priority: 50
