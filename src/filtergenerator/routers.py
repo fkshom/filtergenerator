@@ -153,7 +153,6 @@ class Router1():
                 result.append(f"set firewall filter {interfacename} term {termname} protocol {protocol}")
                 result.append(f"set firewall filter {interfacename} term {termname} {kwargs['action']}")
 
-
         return result
 
     def _generate_rule(self, **kwargs):
