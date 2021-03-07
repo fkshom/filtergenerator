@@ -14,7 +14,7 @@ class DefinitionRepository():
     def add_port_object(self, **kwargs):
         self.port_objects.append(dict(
             portname=kwargs['portname'],
-            protocol=kwargs['protocol'],
+            protocol=kwargs.get('protocol'),
             port=kwargs['port']
         ))
     
