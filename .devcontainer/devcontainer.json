@@ -1,0 +1,25 @@
+{
+    "name": "Ruby 3",
+    "context": "..",
+    "dockerFile": "Dockerfile",
+
+    // "settings": { 
+    //     "terminal.integrated.shell.linux": "/bin/bash",
+    //     "python.pythonPath": "/usr/local/bin/python",
+    //     "python.linting.enabled": true,
+    //     "python.linting.pylintEnabled": true,
+    //     "python.linting.pylintPath": "/usr/local/bin/pylint"
+    // },
+
+    "appPort": [ 9000 ],
+
+    "postCreateCommand": "bundle install",
+
+    "remoteUser": "root",
+
+    "extensions": [
+        "rebornix.ruby",
+        "castwide.solargraph",
+        "wingrunr21.vscode-ruby"
+    ]
+}
