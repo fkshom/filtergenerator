@@ -134,8 +134,8 @@ describe Filtergen::Routers::Router1 do
           src: ['network0'],
           srcport: ['32768-65535'],
           dst: ['host0'],
-          dstport: '53',
-          protocol: 'udp',
+          dstport: 'udp53',
+          protocol: nil,
           action: 'accept',
         }
       }
@@ -187,5 +187,53 @@ describe Filtergen::Routers::Router1 do
         }
       }
     })
+  end
+
+  xit "ルールを文字列に変換できる" do
+    repository = Filtergen::Repository.new()
+    repository.add_host_object(hostname: 'network0', address: '192.168.0.0/24')
+    repository.add_host_object(hostname: 'network1', address: '192.168.1.0/24')
+    repository.add_host_object(hostname: 'host0', address: '10.0.1.50/32')
+    repository.add_host_object(hostname: 'host1', address: '10.0.1.51/32')
+    repository.add_port_object(portname: 'udp53', protocol: 'udp', port: 53)
+    repository.add_port_object(portname: 'default_highport1', port: '32768-65535')
+    data = {
+      "irb100in"=>
+      {"TERM1"=>
+        {:src=>["network0"],
+         :dst=>["host0", "host1"],
+         :srcport=>["32768-65535"],
+         :dstport=>"53",
+         :protocol=>"udp",
+         :action=>"accept"}},
+     "irb110in"=>
+      {"TERM1"=>
+        {:src=>["network1"],
+         :dst=>["host0", "host1"],
+         :srcport=>["32768-65535"],
+         :dstport=>"53",
+         :protocol=>"udp",
+         :action=>"accept"}}
+    }
+
+    router = Filtergen::Routers::Router1.new()
+    router.set_repository(repository)
+    actual = router.convert_from_data_to_filter_string(data)
+    expect(actual).to eq([
+      "set firewall filter irb100in term TERM1 source-address 192.168.0.0/24",
+      "set firewall filter irb100in term TERM1 destination-address 10.0.1.50/32",
+      "set firewall filter irb100in term TERM1 destination-address 10.0.1.51/32",
+      "set firewall filter irb100in term TERM1 source-port 32768-65535",
+      "set firewall filter irb100in term TERM1 destination-port 53",
+      "set firewall filter irb100in term TERM1 protocol udp",
+      "set firewall filter irb100in term TERM1 accept",
+      "set firewall filter irb110in term TERM1 source-address 192.168.1.0/24",
+      "set firewall filter irb110in term TERM1 destination-address 10.0.1.50/32",
+      "set firewall filter irb110in term TERM1 destination-address 10.0.1.51/32",
+      "set firewall filter irb110in term TERM1 source-port 32768-65535",
+      "set firewall filter irb110in term TERM1 destination-port 53",
+      "set firewall filter irb110in term TERM1 protocol udp",
+      "set firewall filter irb110in term TERM1 accept",
+    ])
   end
 end
