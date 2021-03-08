@@ -189,7 +189,7 @@ describe Filtergen::Routers::Router1 do
     })
   end
 
-  xit "ルールを文字列に変換できる" do
+  it "ルールを文字列に変換できる" do
     repository = Filtergen::Repository.new()
     repository.add_host_object(hostname: 'network0', address: '192.168.0.0/24')
     repository.add_host_object(hostname: 'network1', address: '192.168.1.0/24')
