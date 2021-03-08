@@ -211,8 +211,7 @@ describe Filtergen::Routers::Router1 do
         {:src=>["network1"],
          :dst=>["host0", "host1"],
          :srcport=>["32768-65535"],
-         :dstport=>"53",
-         :protocol=>"udp",
+         :dstport=>"udp53",
          :action=>"accept"}}
     }
 

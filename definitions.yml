@@ -1,0 +1,24 @@
+hostObject:
+- hostname: network0
+  address: 192.168.0.0/24
+- hostname: network1
+  address: 192.168.1.0/24
+- hostname: host0
+  address: 10.0.1.50/32
+- hostname: host1
+  address: 10.0.1.51/32
+
+portObject:
+- portname: udp53
+  protocol: udp
+  port: 53
+- portname: default_highport1
+  port: 32768-65535
+
+rule:
+- name: TERM1
+  src: ['network0', 'network1']
+  dst: ['host0', 'host1']
+  srcport: default_highport1
+  dstport: udp53
+  action: accept

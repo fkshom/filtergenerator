@@ -1,0 +1,9 @@
+router1:
+- interfacename: irb100
+  filtername: irb100in
+  direction: in
+  address: 192.168.0.1/24
+- interfacename: irb110
+  filtername: irb110in
+  direction: in
+  address: 192.168.1.1/24
