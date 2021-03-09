@@ -325,7 +325,7 @@ describe Filtergen::Routers::VDSTF1 do
             protocol: 'udp', action: 'accept'
           }
         ],
-        "pg00" => [
+        "pg01" => [
           { desc: "TERM1", 
             src: "192.168.1.0/24", dst: '10.0.1.50/32',
             srcport: '32768-65535', dstport: '53',
