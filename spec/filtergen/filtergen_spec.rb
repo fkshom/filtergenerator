@@ -236,3 +236,108 @@ describe Filtergen::Routers::Router1 do
     ])
   end
 end
+
+describe Filtergen::Routers::VDSTF1 do
+  it "複数のインタフェースを持つルーターについて、該当インタフェースごとのfilterをオブジェクト名を使用したルールから生成できる" do
+    repository = Filtergen::Repository.new()
+    repository.add_host_object(hostname: 'network0', address: '192.168.0.0/24')
+    repository.add_host_object(hostname: 'network1', address: '192.168.1.0/24')
+    repository.add_host_object(hostname: 'host0', address: '10.0.1.50/32')
+    repository.add_host_object(hostname: 'host1', address: '10.0.1.51/32')
+    repository.add_port_object(portname: 'udp53', protocol: 'udp', port: 53)
+    repository.add_port_object(portname: 'default_highport1', port: '32768-65535')
+
+    vdstf = Filtergen::Routers::VDSTF1.new()
+    vdstf.assign_portgroup(dcname: 'vmdc01', portgroupname: 'pg00', address: '192.168.0.1/24')
+    vdstf.assign_portgroup(dcname: 'vmdc01', portgroupname: 'pg01', address: '192.168.1.1/24')
+    vdstf.set_repository(repository)
+    vdstf.add_rule(
+      name: 'TERM1',
+      src: ['network0', 'network1'],
+      srcport: '32768-65535',
+      dst: ['host0', 'host1'],
+      dstport: '53',
+      protocol: 'udp',
+      action: 'accept'
+    )
+    actual = vdstf.create_filter_configuration_data()
+    expect(actual).to eq({
+      "vmdc01" => {
+        "pg00" => [
+          { desc: "TERM1", 
+            src: ["network0"], dst: ['host0', 'host1'],
+            srcport: ['32768-65535'], dstport: '53',
+            protocol: 'udp', action: 'accept'
+          }
+        ],
+        "pg01" => [
+          { desc: "TERM1", 
+            src: ["network1"], dst: ['host0', 'host1'],
+            srcport: ['32768-65535'], dstport: '53',
+            protocol: 'udp', action: 'accept'
+          },
+        ]
+      }
+    })
+  end
+
+  it "ルールを文字列に変換できる" do
+    repository = Filtergen::Repository.new()
+    repository.add_host_object(hostname: 'network0', address: '192.168.0.0/24')
+    repository.add_host_object(hostname: 'network1', address: '192.168.1.0/24')
+    repository.add_host_object(hostname: 'host0', address: '10.0.1.50/32')
+    repository.add_host_object(hostname: 'host1', address: '10.0.1.51/32')
+    repository.add_port_object(portname: 'udp53', protocol: 'udp', port: 53)
+    repository.add_port_object(portname: 'default_highport1', port: '32768-65535')
+    data = {
+      "vmdc01" => {
+        "pg00" => [
+          { desc: "TERM1", 
+            src: ["network0"], dst: ['host0', 'host1'],
+            srcport: ['32768-65535'], dstport: '53',
+            protocol: 'udp', action: 'accept'
+          }
+        ],
+        "pg01" => [
+          { desc: "TERM1", 
+            src: ["network1"], dst: ['host0', 'host1'],
+            srcport: ['32768-65535'], dstport: '53',
+            protocol: 'udp', action: 'accept'
+          },
+        ]
+      }
+    }
+
+    vdstf = Filtergen::Routers::VDSTF1.new()
+    vdstf.set_repository(repository)
+    actual = vdstf.convert_from_data_to_filter_string(data)
+    expect(actual).to eq({
+      "vmdc01" => {
+        "pg00" => [
+          { desc: "TERM1", 
+            src: "192.168.0.0/24", dst: '10.0.1.50/32',
+            srcport: '32768-65535', dstport: '53',
+            protocol: 'udp', action: 'accept'
+          },
+          { desc: "TERM1", 
+            src: "192.168.0.0/24", dst: '10.0.1.51/32',
+            srcport: '32768-65535', dstport: '53',
+            protocol: 'udp', action: 'accept'
+          }
+        ],
+        "pg00" => [
+          { desc: "TERM1", 
+            src: "192.168.1.0/24", dst: '10.0.1.50/32',
+            srcport: '32768-65535', dstport: '53',
+            protocol: 'udp', action: 'accept'
+          },
+          { desc: "TERM1", 
+            src: "192.168.1.0/24", dst: '10.0.1.51/32',
+            srcport: '32768-65535', dstport: '53',
+            protocol: 'udp', action: 'accept'
+          }
+        ],
+      }
+    })
+  end
+end
