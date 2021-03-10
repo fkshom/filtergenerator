@@ -201,6 +201,36 @@ class Filtergen::Routers::Router1
   end
 end
 
+class Filtergen::Routers::Router2 < Filtergen::Routers::Router1
+  def create_filter_configuration_data()
+    result = {}
+    
+    @rules.each do |rulea|
+      src_grouped = rule[:src].group_by{|e|
+        #eが所属しているインタフェースのフィルタ名をキーとし、所属するIPアドレスの配列をValueで返す
+        ho = HostObject.new(e, @repository)
+        @interfaces.select{|interface| 
+          raise Exception.new("address not found #{ho}") if ho.address.nil?
+          IPAddr.new(interface[:address]).include?(
+            IPAddr.new(ho.address))}.first[:filtername]
+      }
+      src_grouped.each do |filtername, srcs|
+        result[ filtername ] ||= {}
+        name = rule[:name]
+        result[ filtername ][name] = {
+          src: [srcs].flatten(),
+          dst: [rule[:dst]].flatten(),
+          srcport: [rule[:srcport]].flatten(),
+          dstport: rule[:dstport],
+          protocol: rule[:protocol],
+          action: rule[:action],
+        }
+      end
+    end
+    return result
+  end
+end
+
 class Filtergen::Routers::VDSTF1
   def initialize()
     @portgroups = []
