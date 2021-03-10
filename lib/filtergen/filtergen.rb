@@ -302,32 +302,30 @@ class Filtergen::Routers::VDSTF1
   end
 
   def convert_from_data_to_filter_string(data)
-    result = []
+    result = {}
     data.each do |dcname, value1|
+      result[dcname] ||= {}
       value1.each do |portgroupname, objs|
+        result[dcname][portgroupname] ||= []
         objs.each do |obj|
           src = resolve_host_object(obj[:src])
-          [src].flatten().each do |e|
-            result << "set firewall filter #{dcname} term #{portgroupname} source-address #{e}"
-          end
-
           dst = resolve_host_object(obj[:dst])
-          [dst].flatten().each do |e|
-            result << "set firewall filter #{dcname} term #{portgroupname} destination-address #{e}"
-          end
-
           srcport = resolve_port_object(obj[:srcport], type: :src)
-          [srcport].flatten().each do |e|
-            result << "set firewall filter #{dcname} term #{portgroupname} source-port #{e}"
-          end
-
           dstport, protocol = resolve_port_object(obj[:dstport], protocol: obj[:protocol], type: :dst)
-          [dstport].flatten().each do |e|
-            result << "set firewall filter #{dcname} term #{portgroupname} destination-port #{e}"
-          end
-          result << "set firewall filter #{dcname} term #{portgroupname} protocol #{protocol}"
-          action = obj[:action]
-          result << "set firewall filter #{dcname} term #{portgroupname} #{action}"
+          src = [src].flatten()
+          dst = [dst].flatten()
+          srcport = [srcport].flatten()
+          dstport = [dstport].flatten()
+
+          src.product(dst, srcport, dstport){|s, d, sp, dp|
+            result[dcname][portgroupname] << {
+              desc: "TERM1", 
+              src: s, dst: d,
+              srcport: sp, dstport: dp,
+              protocol: protocol, action: obj[:action]
+            }
+          }
+          
         end
       end
     end

@@ -10,4 +10,5 @@ group :development, :test do
   gem 'guard-rspec', require:false
   gem 'solargraph'
   gem 'pry'
+  gem "super_diff"
 end

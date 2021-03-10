@@ -281,7 +281,7 @@ describe Filtergen::Routers::VDSTF1 do
     })
   end
 
-  it "ルールを文字列に変換できる" do
+  it "ルールをobjectに変換できる" do
     repository = Filtergen::Repository.new()
     repository.add_host_object(hostname: 'network0', address: '192.168.0.0/24')
     repository.add_host_object(hostname: 'network1', address: '192.168.1.0/24')
@@ -339,5 +339,11 @@ describe Filtergen::Routers::VDSTF1 do
         ],
       }
     })
+  end
+end
+
+describe "e2e test" do
+  it "a" do
+    
   end
 end
