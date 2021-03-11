@@ -1,3 +1,4 @@
+import itertools
 import sys
 import io
 import yaml
@@ -183,14 +184,14 @@ def filter_rules(filename, args):
         print(
             f"{dcnamepgname:20s}"
             f"{r['description']:20s}"
-            f"{r['source-address']:16s}"
+            f"{r['source-address']:20s}"
             f"{str(r['source-port']):16s}"
-            f"{r['destination-address']:16s}"
+            f"{r['destination-address']:20s}"
             f"{str(r['destination-port']):16s}"
             f"{r['protocol']:5s}"
         )
 
-def filter(args=None):
+def runfilter(args=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('--ipaddress', '-i')
     parser.add_argument('--src', '-s')
@@ -199,15 +200,149 @@ def filter(args=None):
     parser.add_argument('--dst-port', '-D')
     parser.add_argument('--src-exact')
     parser.add_argument('--dst-exact')
-    parser.add_argument('yamlfilename', nargs='+', default='-')
+    parser.add_argument('filenames', nargs='+', default='-')
 
     args = parser.parse_args(args)
 
     if args.ipaddress is not None and (args.src is not None or args.dst is not None):
         raise Exception("ipaddress and (src or dst) can not be accept.")
 
-    for filename in args.yamlfilename:
-        filter_rules(filename, args)
+    for filename in args.filenames:
+        if(filename.endswith('.yaml')):
+            filter_rules(filename, args)
+        elif(filename.endswith('.yml')):
+            filter_rules(filename, args)
+        elif(filename.endswith('.txt')):
+            filter_rules_junos(filename, args)
+
+def filter_rules_junos(filename, args):
+    parser = JunosFirewallFilterParser()
+    data = parser.parse(filename, expand=True)
+    pp(data)
+    argipaddr = None
+    argsrc = None
+    argdst = None
+    argsrcport = args.src_port
+    argdstport = args.dst_port
+    if args.ipaddress:
+        argipaddr = IPv4Interface(args.ipaddress)
+    if args.src:
+        argsrc = IPv4Interface(args.src)
+    if args.dst:
+        argdst = IPv4Interface(args.dst)
+
+    def is_subnet_or_not_defined(a, b):
+        if a and b:
+            return IPv4Interface(a).network.subnet_of( IPv4Interface(b).network )
+        else:
+            return True
+
+    import itertools
+
+    for filtername in data.keys():
+        for termname in data[filtername].keys():
+            rules = data[filtername][termname]
+            for rule in rules:
+                rulesrc = rule.get('source-address')
+                ruledst = rule.get('destination-address')
+                rulesrcport = rule.get('source-port')
+                ruledstport = rule.get('destination-port')
+                protocol = rule.get('protocol')
+
+                r = None
+                
+                if args.ipaddress and (
+                    (rulesrc and is_subnet_or_not_defined(args.ipaddress, rulesrc)) or \
+                    (ruledst and is_subnet_or_not_defined(args.ipaddress, ruledst))):
+                    r = rule
+
+                if (argsrc or argdst) and \
+                    is_subnet_or_not_defined(argsrc, rulesrc) and \
+                    is_subnet_or_not_defined(argdst, ruledst):
+                    r = rule
+
+                if r:
+                    print(
+                        f"{filtername:20s}"
+                        f"{termname:20s}"
+                        f"{r['source-address']:20s}"
+                        f"{str(r['source-port']):16s}"
+                        f"{r['destination-address']:20s}"
+                        f"{str(r['destination-port']):16s}"
+                        f"{r['protocol']:5s}"
+                    )
+
+class JunosFirewallFilterParser():
+    def parse(self, filename, expand=False):
+        with open(filename) as f:
+            config = map(lambda line: line.strip(), f.readlines())
+        firewallfilters = filter(lambda line: line.startswith('set firewall filter'), config)
+        data = {}
+        import re
+        for line in list(firewallfilters):
+            m = re.fullmatch(r"set firewall filter ([^ ]+) term ([^ ]+) from source-address ([^ ]+)", line)
+            if m:
+                data.setdefault(m.group(1), {})
+                data[ m.group(1) ].setdefault(m.group(2), {})
+                data[ m.group(1) ][m.group(2)].setdefault('source-address', [])
+                data[ m.group(1) ][m.group(2)]['source-address'].append(m.group(3))
+                continue
+
+            m = re.fullmatch(r"set firewall filter ([^ ]+) term ([^ ]+) from destination-address ([^ ]+)", line)
+            if m:
+                data.setdefault(m.group(1), {})
+                data[ m.group(1) ].setdefault(m.group(2), {})
+                data[ m.group(1) ][m.group(2)].setdefault('destination-address', [])
+                data[ m.group(1) ][m.group(2)]['destination-address'].append(m.group(3))
+                continue
+
+            m = re.fullmatch(r"set firewall filter ([^ ]+) term ([^ ]+) from source-port ([^ ]+)", line)
+            if m:
+                data.setdefault(m.group(1), {})
+                data[ m.group(1) ].setdefault(m.group(2), {})
+                data[ m.group(1) ][m.group(2)].setdefault('source-port', [])
+                data[ m.group(1) ][m.group(2)]['source-port'].append(m.group(3))
+                continue
+
+            m = re.fullmatch(r"set firewall filter ([^ ]+) term ([^ ]+) from destination-port ([^ ]+)", line)
+            if m:
+                data.setdefault(m.group(1), {})
+                data[ m.group(1) ].setdefault(m.group(2), {})
+                data[ m.group(1) ][m.group(2)].setdefault('destination-port', [])
+                data[ m.group(1) ][m.group(2)]['destination-port'].append(m.group(3))
+                continue
+
+            m = re.fullmatch(r"set firewall filter ([^ ]+) term ([^ ]+) from protocol ([^ ]+)", line)
+            if m:
+                data.setdefault(m.group(1), {})
+                data[ m.group(1) ].setdefault(m.group(2), {})
+                data[ m.group(1) ][m.group(2)]['protocol'] = m.group(3)
+                continue
+
+        if not expand:
+            return data
+
+        data2 = {}
+        for filtername in data.keys():
+            data2.setdefault(filtername, {})
+            for termname in data[filtername].keys():
+                data2[filtername].setdefault(termname, [])
+
+                srcs = data[filtername][termname].get('source-address', [])
+                dsts = data[filtername][termname].get('destination-address', [])
+                srcports = data[filtername][termname].get('source-port', [])
+                dstports = data[filtername][termname].get('destination-port', [])
+                protocol = data[filtername][termname].get('protocol', None)
+
+                for rule in itertools.product(srcs, dsts, srcports, dstports):
+                    tmp = {}
+                    tmp['source-address'] = rule[0]
+                    tmp['destination-address'] = rule[1]
+                    tmp['source-port'] = rule[2]
+                    tmp['destination-port'] = rule[3]
+                    tmp['protocol'] = protocol
+                    data2[filtername][termname].append(tmp)
+        return data2
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,14 @@
+set firewall filter irb100in term TERM1 from source-address 192.168.0.0/24
+set firewall filter irb100in term TERM1 from destination-address 10.0.1.50/32
+set firewall filter irb100in term TERM1 from destination-address 10.0.1.51/32
+set firewall filter irb100in term TERM1 from source-port 32768-65535
+set firewall filter irb100in term TERM1 from destination-port 53
+set firewall filter irb100in term TERM1 from protocol udp
+set firewall filter irb100in term TERM1 then accept
+set firewall filter irb110in term TERM1 from source-address 192.168.1.0/24
+set firewall filter irb110in term TERM1 from destination-address 10.0.1.50/32
+set firewall filter irb110in term TERM1 from destination-address 10.0.1.51/32
+set firewall filter irb110in term TERM1 from source-port 32768-65535
+set firewall filter irb110in term TERM1 from destination-port 53
+set firewall filter irb110in term TERM1 from protocol udp
+set firewall filter irb110in term TERM1 then accept
