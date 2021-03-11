@@ -6,6 +6,7 @@ authors = ["Your Name <you@example.com>"]
 
 [tool.poetry.scripts]
 generate = "filtergenerator.cli:main"
+filter = "filtergenerator.cli:filter"
 
 [tool.poetry.dependencies]
 python = "^3.6"

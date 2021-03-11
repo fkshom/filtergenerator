@@ -2,6 +2,7 @@ import sys
 import io
 import yaml
 import ipaddress
+from ipaddress import IPv4Interface
 import argparse
 from pprint import pprint as pp
 from .repository import DefinitionRepository
@@ -132,6 +133,81 @@ def main(args=None):
         order_priority=49,
     )
     pp(vds1.create_filter_configuration(), width=150)
+
+def filter_rules(filename, args):
+    with open(filename, 'r') as f:
+        data = yaml.safe_load(f)
+    
+    dcname = list(data.keys())[0]
+    pgname = list(data[dcname].keys())[0]
+    rules = data[dcname][pgname]
+    argipaddr = None
+    argsrc = None
+    argdst = None
+    argsrcport = args.src_port
+    argdstport = args.dst_port
+    if args.ipaddress:
+        argipaddr = IPv4Interface(args.ipaddress)
+    if args.src:
+        argsrc = IPv4Interface(args.src)
+    if args.dst:
+        argdst = IPv4Interface(args.dst)
+
+    def is_subnet_or_not_defined(a, b):
+        if a and b:
+            return IPv4Interface(a).network.subnet_of( IPv4Interface(b).network )
+        else:
+            return True
+
+    result = []
+    for rule in rules:
+        rulesrc = rule.get('source-address')
+        ruledst = rule.get('destination-address')
+        rulesrcport = rule.get('source-port')
+        ruledstport = rule.get('destination-port')
+
+        if args.ipaddress and (
+           (rulesrc and is_subnet_or_not_defined(args.ipaddress, rulesrc)) or \
+           (ruledst and is_subnet_or_not_defined(args.ipaddress, ruledst))):
+            result.append(rule)
+            continue
+
+        if (argsrc or argdst) and \
+           is_subnet_or_not_defined(argsrc, rulesrc) and \
+           is_subnet_or_not_defined(argdst, ruledst):
+           result.append(rule)
+           continue
+
+    dcnamepgname = f"{dcname}-{pgname}"
+    for r in result:
+        print(
+            f"{dcnamepgname:20s}"
+            f"{r['description']:20s}"
+            f"{r['source-address']:16s}"
+            f"{str(r['source-port']):16s}"
+            f"{r['destination-address']:16s}"
+            f"{str(r['destination-port']):16s}"
+            f"{r['protocol']:5s}"
+        )
+
+def filter(args=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--ipaddress', '-i')
+    parser.add_argument('--src', '-s')
+    parser.add_argument('--dst', '-d')
+    parser.add_argument('--src-port', '-S')
+    parser.add_argument('--dst-port', '-D')
+    parser.add_argument('--src-exact')
+    parser.add_argument('--dst-exact')
+    parser.add_argument('yamlfilename', nargs='+', default='-')
+
+    args = parser.parse_args(args)
+
+    if args.ipaddress is not None and (args.src is not None or args.dst is not None):
+        raise Exception("ipaddress and (src or dst) can not be accept.")
+
+    for filename in args.yamlfilename:
+        filter_rules(filename, args)
 
 if __name__ == "__main__":
     main()

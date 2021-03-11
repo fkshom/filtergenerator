@@ -9,8 +9,19 @@ describe Filtergen do
 end
 
 describe Filtergen::Repository do
-  let(:unko) do
-    []
+  it "add rule" do
+    repository = Filtergen::Repository.new()
+    repository.add_rule(
+      name: 'TERM1',
+      src: '192.168.0.0/24',
+      srcport: '32768-65535',
+      dst: '10.0.1.50/32',
+      dstport: '53',
+      protocol: 'udp',
+      action: 'accept',
+      only: ['router1'],
+      tags: [:specific_router1]
+    )
   end
 end
 
@@ -344,7 +355,7 @@ end
 
 
 describe Filtergen::Routers::Router2 do
-  it "シングルルールから/24で集約したfilterを生成できる" do
+  xit "シングルルールから/24で集約したfilterを生成できる" do
     router = Filtergen::Routers::Router2.new()
     router.assign_interface(interfacename: 'irb100', filtername: 'irb100in', direction: 'in', address: '192.168.0.1/24')
     router.add_rule(

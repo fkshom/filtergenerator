@@ -50,7 +50,7 @@ class Filtergen::Repository
   end
 end
 
-class HostObject
+class Host
   attr_reader :address, :hostname
 
   def initialize(hostname_or_address, repository)
@@ -69,6 +69,14 @@ class HostObject
 
     raise Exception.new("host object not found #{hostname_or_address}") if @address.nil?
   end
+end
+
+class HostObject < Host; end
+
+class Port
+end
+
+class Rule
 end
 
 class Filtergen::Routers; end
