@@ -413,9 +413,9 @@ describe Filtergen::Routers::VDSTF1 do
 end
 
 
-xdescribe Filtergen::Routers::Router3 do
+xdescribe Filtergen::Routers::Router1 do
   it "シングルルールから/24で集約したfilterを生成できる" do
-    router = Filtergen::Routers::Router3.new()
+    router = Filtergen::Routers::Router1.new()
     router.assign_interface(interfacename: 'irb100', filtername: 'irb100in', direction: 'in', address: '192.168.0.1/24')
     router.add_rule(
       name: 'TERM1',

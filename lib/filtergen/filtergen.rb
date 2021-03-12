@@ -223,9 +223,6 @@ class Filtergen::Routers::Router1
   end
 end
 
-class Filtergen::Routers::Router2 < Filtergen::Routers::Router1; end
-class Filtergen::Routers::Router3 < Filtergen::Routers::Router1; end
-
 class Filtergen::Routers::VDSTF1
   include RuleOperatorModule
 
@@ -249,25 +246,21 @@ class Filtergen::Routers::VDSTF1
 
   def create_filter_configuration_data()
     result = {}
-    
-    @repository.rules.each do |rule|
-      src_grouped = rule[:src].group_by{|e|
-        #eが所属しているインタフェースのフィルタ名をキーとし、所属するIPアドレスの配列をValueで返す
-        ho = HostObject.new(e, @repository)
-        @portgroups.select{|portgroup| 
-          raise Exception.new("address not found #{ho}") if ho.address.nil?
-          IPAddr.new(portgroup[:address]).include?(
-            IPAddr.new(ho.address))
-        }.first.values_at(:dcname, :portgroupname)
-      }
-      src_grouped.each do |dcname_portgroupname, srcs|
-        dcname, portgroupname = *dcname_portgroupname
+
+    @repository.rules.each do |p_rule|
+      @portgroups.each do |portgroup|
+        rule = Marshal.load(Marshal.dump(p_rule))
+        rule[:src] = rule[:src].select{|s| 
+          ho = HostObject.new(s, @repository)
+          IPAddr.new(portgroup[:address]).include?(IPAddr.new(ho.address))
+        }
+        dcname = portgroup[:dcname]
+        pgname = portgroup[:portgroupname]
         result[ dcname ] ||= {}
-        result[ dcname ][ portgroupname ] ||= []
-        name = rule[:name]
-        result[ dcname ][ portgroupname ] << {
-          desc: name,
-          src: [srcs].flatten(),
+        result[ dcname ][ pgname ] ||= []
+        result[ dcname ][ pgname ] << {
+          desc: rule[:name],
+          src: [rule[:src]].flatten(),
           dst: [rule[:dst]].flatten(),
           srcport: [rule[:srcport]].flatten(),
           dstport: rule[:dstport],
@@ -278,7 +271,6 @@ class Filtergen::Routers::VDSTF1
     end
     return result
   end
-
 
   def convert_from_data_to_filter_string(data)
     result = {}
