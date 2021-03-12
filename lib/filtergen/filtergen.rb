@@ -11,6 +11,7 @@ class Filtergen::Repository::HostObject
 end
 
 class Filtergen::Repository
+  attr_reader :rules
   def initialize()
     @host_objects = []
     @port_objects = []
@@ -20,25 +21,31 @@ class Filtergen::Repository
   def add_host_object(**kwargs)
     @host_objects << {
       hostname: kwargs[:hostname],
-      address: kwargs[:address],
+      address:  kwargs[:address],
     }
+    self
   end
 
   def add_port_object(**kwargs)
     @port_objects << {
       portname: kwargs[:portname],
       protocol: kwargs[:protocol],
-      port: kwargs[:port],
+      port:     kwargs[:port],
     }
+    self
   end
 
   def add_rule(**kwargs)
     @rules << {
       name: kwargs[:name],
-      src: kwargs[:src], srcport: kwargs[:srcport],
-      dst: kwargs[:dst], dstport: kwargs[:dstport],
-      protocol: kwargs[:protocol]
+      src: [kwargs[:src]].flatten(),
+      dst: [kwargs[:dst]].flatten(),
+      srcport: [kwargs[:srcport]].flatten(),
+      dstport: kwargs[:dstport],
+      protocol: kwargs[:protocol],
+      action: kwargs[:action],
     }
+    self
   end
 
   def get_host_object(hostname)
@@ -81,65 +88,7 @@ end
 
 class Filtergen::Routers; end
 
-class Filtergen::Routers::Router1
-  def initialize()
-    @interfaces = []
-    @rules = []
-    @repository = nil
-  end
-
-  def assign_interface(interfacename:, filtername:, direction:, address:)
-    @interfaces << {
-      interfacename: interfacename,
-      filtername: filtername,
-      address: address,
-    }
-  end
-
-  def set_repository(func)
-    @repository = func
-  end
-
-  def add_rule(**rule)
-    @rules << {
-      name: rule[:name],
-      src: [rule[:src]].flatten(),
-      dst: [rule[:dst]].flatten(),
-      srcport: [rule[:srcport]].flatten(),
-      dstport: rule[:dstport],
-      protocol: rule[:protocol],
-      action: rule[:action],
-    }
-  end
-
-  def create_filter_configuration_data()
-    result = {}
-    
-    @rules.each do |rule|
-      src_grouped = rule[:src].group_by{|e|
-        #eが所属しているインタフェースのフィルタ名をキーとし、所属するIPアドレスの配列をValueで返す
-        ho = HostObject.new(e, @repository)
-        @interfaces.select{|interface| 
-          raise Exception.new("address not found #{ho}") if ho.address.nil?
-          IPAddr.new(interface[:address]).include?(
-            IPAddr.new(ho.address))}.first[:filtername]
-      }
-      src_grouped.each do |filtername, srcs|
-        result[ filtername ] ||= {}
-        name = rule[:name]
-        result[ filtername ][name] = {
-          src: [srcs].flatten(),
-          dst: [rule[:dst]].flatten(),
-          srcport: [rule[:srcport]].flatten(),
-          dstport: rule[:dstport],
-          protocol: rule[:protocol],
-          action: rule[:action],
-        }
-      end
-    end
-    return result
-  end
-
+module RuleOperatorModule
   def resolve_host_object(hostnames)
     [hostnames].flatten().map{|hostname_or_address|
       begin
@@ -175,6 +124,70 @@ class Filtergen::Routers::Router1
       raise Exception.new("protocols does not same #{protocols}")
     end
     return [result_ports, result_protocol]
+  end
+
+  def aggregate_rules(target: [:dstport, :protocol])
+    return @repository.rules.each_with_object([]) do |rule, acc|
+      if ev = acc.detect{|ev| ev[:dstport] == rule[:dstport] && ev[:protocol] == rule[:protocol] }
+        ev.merge!( rule.merge(
+          src: [ev[:src], rule[:src]].flatten.uniq,
+          dst: [ev[:dst], rule[:dst]].flatten.uniq,
+          srcport: [rule[:srcport], ev[:srcport]].flatten.uniq,
+          ) )
+      else
+        acc << rule.dup
+      end
+    end
+  end
+end
+
+class Filtergen::Routers::Router1
+  include RuleOperatorModule
+
+  def initialize()
+    @interfaces = []
+    @rules = []
+    @repository = nil
+  end
+
+  def assign_interface(interfacename:, filtername:, direction:, address:)
+    @interfaces << {
+      interfacename: interfacename,
+      filtername: filtername,
+      address: address,
+    }
+  end
+
+  def set_repository(func)
+    @repository = func
+  end
+
+  def create_filter_configuration_data()
+    result = {}
+    
+    @repository.rules.each do |rule|
+      src_grouped = rule[:src].group_by{|e|
+        #eが所属しているインタフェースのフィルタ名をキーとし、所属するIPアドレスの配列をValueで返す
+        ho = HostObject.new(e, @repository)
+        @interfaces.select{|interface| 
+          raise Exception.new("address not found #{ho}") if ho.address.nil?
+          IPAddr.new(interface[:address]).include?(
+            IPAddr.new(ho.address))}.first[:filtername]
+      }
+      src_grouped.each do |filtername, srcs|
+        result[ filtername ] ||= {}
+        name = rule[:name]
+        result[ filtername ][name] = {
+          src: [srcs].flatten(),
+          dst: [rule[:dst]].flatten(),
+          srcport: [rule[:srcport]].flatten(),
+          dstport: rule[:dstport],
+          protocol: rule[:protocol],
+          action: rule[:action],
+        }
+      end
+    end
+    return result
   end
 
   def convert_from_data_to_filter_string(data)
@@ -209,37 +222,12 @@ class Filtergen::Routers::Router1
   end
 end
 
-class Filtergen::Routers::Router2 < Filtergen::Routers::Router1
-  def create_filter_configuration_data()
-    result = {}
-    
-    @rules.each do |rulea|
-      src_grouped = rule[:src].group_by{|e|
-        #eが所属しているインタフェースのフィルタ名をキーとし、所属するIPアドレスの配列をValueで返す
-        ho = HostObject.new(e, @repository)
-        @interfaces.select{|interface| 
-          raise Exception.new("address not found #{ho}") if ho.address.nil?
-          IPAddr.new(interface[:address]).include?(
-            IPAddr.new(ho.address))}.first[:filtername]
-      }
-      src_grouped.each do |filtername, srcs|
-        result[ filtername ] ||= {}
-        name = rule[:name]
-        result[ filtername ][name] = {
-          src: [srcs].flatten(),
-          dst: [rule[:dst]].flatten(),
-          srcport: [rule[:srcport]].flatten(),
-          dstport: rule[:dstport],
-          protocol: rule[:protocol],
-          action: rule[:action],
-        }
-      end
-    end
-    return result
-  end
-end
+class Filtergen::Routers::Router2 < Filtergen::Routers::Router1; end
+class Filtergen::Routers::Router3 < Filtergen::Routers::Router1; end
 
 class Filtergen::Routers::VDSTF1
+  include RuleOperatorModule
+
   def initialize()
     @portgroups = []
     @rules = []
@@ -258,22 +246,10 @@ class Filtergen::Routers::VDSTF1
     @repository = func
   end
 
-  def add_rule(**rule)
-    @rules << {
-      name: rule[:name],
-      src: [rule[:src]].flatten(),
-      dst: [rule[:dst]].flatten(),
-      srcport: [rule[:srcport]].flatten(),
-      dstport: rule[:dstport],
-      protocol: rule[:protocol],
-      action: rule[:action],
-    }
-  end
-
   def create_filter_configuration_data()
     result = {}
     
-    @rules.each do |rule|
+    @repository.rules.each do |rule|
       src_grouped = rule[:src].group_by{|e|
         #eが所属しているインタフェースのフィルタ名をキーとし、所属するIPアドレスの配列をValueで返す
         ho = HostObject.new(e, @repository)
@@ -302,42 +278,6 @@ class Filtergen::Routers::VDSTF1
     return result
   end
 
-  def resolve_host_object(hostnames)
-    [hostnames].flatten().map{|hostname_or_address|
-      begin
-        IPAddr.new(hostname_or_address)
-        next hostname_or_address
-      rescue IPAddr::InvalidAddressError
-        next @repository.get_host_object(hostname_or_address)[:address]
-      end
-      raise Exception.new("host object not found #{hostname_or_address}") if @address.nil?
-    }
-  end
-
-  def resolve_port_object(portnames, protocol: nil, type:)
-    result_ports = []
-    result_protocol = nil
-    tmp = [portnames].flatten().map{|port_or_portrange_or_portname|
-      if %r"\A\d+\z|\A\d+-\d+\z" =~ port_or_portrange_or_portname
-        next {prortname: nil, port: port_or_portrange_or_portname, protocol: nil}
-      else
-        next @repository.get_port_object(port_or_portrange_or_portname)
-      end
-    }
-    result_ports = tmp.map{|e| e[:port] }
-    return result_ports if type == :src
-
-    protocols = []
-    protocols << protocol
-    protocols += tmp.map{|e| e[:protocol] }
-    protocols.reject!(&:nil?)
-    if protocols.uniq.count == 1
-      result_protocol = protocols.first
-    else
-      raise Exception.new("protocols does not same #{protocols}")
-    end
-    return [result_ports, result_protocol]
-  end
 
   def convert_from_data_to_filter_string(data)
     result = {}
