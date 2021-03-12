@@ -139,6 +139,9 @@ module RuleOperatorModule
       end
     end
   end
+
+  def flatten_rules(order: [:src, :dst, :srcport, :dstport, :protocol, :action])
+  end
 end
 
 class Filtergen::Routers::Router1
@@ -164,27 +167,25 @@ class Filtergen::Routers::Router1
 
   def create_filter_configuration_data()
     result = {}
-    
-    @repository.rules.each do |rule|
-      src_grouped = rule[:src].group_by{|e|
-        #eが所属しているインタフェースのフィルタ名をキーとし、所属するIPアドレスの配列をValueで返す
-        ho = HostObject.new(e, @repository)
-        @interfaces.select{|interface| 
-          raise Exception.new("address not found #{ho}") if ho.address.nil?
-          IPAddr.new(interface[:address]).include?(
-            IPAddr.new(ho.address))}.first[:filtername]
-      }
-      src_grouped.each do |filtername, srcs|
+
+    @repository.rules.each do |p_rule|
+      @interfaces.each do |interface|
+        rule = Marshal.load(Marshal.dump(p_rule))
+        rule[:src] = rule[:src].select{|s| 
+          ho = HostObject.new(s, @repository)
+          IPAddr.new(interface[:address]).include?(IPAddr.new(ho.address))
+        }
+        filtername = interface[:filtername]
         result[ filtername ] ||= {}
-        name = rule[:name]
-        result[ filtername ][name] = {
-          src: [srcs].flatten(),
+        result[ filtername ][ rule[:name] ] = {
+          src: [rule[:src]].flatten(),
           dst: [rule[:dst]].flatten(),
           srcport: [rule[:srcport]].flatten(),
           dstport: rule[:dstport],
           protocol: rule[:protocol],
           action: rule[:action],
         }
+        
       end
     end
     return result

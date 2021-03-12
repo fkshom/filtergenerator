@@ -356,9 +356,7 @@ describe Filtergen::Routers::VDSTF1 do
       }
     })
   end
-end
 
-describe Filtergen::Routers::Router2 do
   it "複数のルールの重複を排除する" do
     repository = Filtergen::Repository.new()
     repository.add_rule(
@@ -388,7 +386,7 @@ describe Filtergen::Routers::Router2 do
       protocol: 'tcp',
       action: 'accept'
     )
-    router = Filtergen::Routers::Router2.new()
+    router = Filtergen::Routers::Router1.new()
     router.assign_interface(interfacename: 'irb100', filtername: 'irb100in', direction: 'in', address: '192.168.0.1/24')
     router.set_repository(repository)
 
@@ -413,6 +411,7 @@ describe Filtergen::Routers::Router2 do
     ])
   end
 end
+
 
 xdescribe Filtergen::Routers::Router3 do
   it "シングルルールから/24で集約したfilterを生成できる" do
