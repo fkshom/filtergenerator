@@ -1,6 +1,6 @@
 require "bundler/setup"
-require "filtergen/filtergen"
 require "super_diff/rspec"
+require "filtergen"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
