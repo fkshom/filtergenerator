@@ -1,29 +1,31 @@
 require 'ipaddr'
 class Filtergen::Repository; end
 
-class Filtergen::Repository::Rule
-  attr_reader :name, :src, :dst, :srcport, :dstport, :protocol, :action
+class Filtergen::Repository
+  class Rule
+    attr_reader :name, :src, :dst, :srcport, :dstport, :protocol, :action
 
-  def initialize(**kwargs)
-    @name = kwargs[:name] || nil
-    @src = [kwargs[:src]].flatten()
-    @dst = [kwargs[:dst]].flatten()
-    @srcport = [kwargs[:srcport]].flatten()
-    @dstport = [kwargs[:dstport]].flatten()
-    @protocol = [kwargs[:protocol]].flatten()
-    @action = kwargs[:action]
+    def initialize(**kwargs)
+      @name = kwargs[:name] || nil
+      @src = [kwargs[:src]].flatten()
+      @dst = [kwargs[:dst]].flatten()
+      @srcport = [kwargs[:srcport]].flatten()
+      @dstport = [kwargs[:dstport]].flatten()
+      @protocol = [kwargs[:protocol]].flatten()
+      @action = kwargs[:action]
+    end
+
+    def src=(value)
+      @src = value
+      self
+    end
+
+    def src
+      @src.flatten.uniq
+    end
   end
-
-  def src=(value)
-    @src = value
-    self
-  end
-
-  def src
-    @src.flatten.uniq
-  end
-
 end
+
 class Filtergen::Repository
   attr_reader :rules, :rules_object
   def initialize()
@@ -70,6 +72,43 @@ class Filtergen::Repository
 
   def get_port(portname)
     @port_objects.select{|e| e[:portname] == portname }.first
+  end
+
+  def resolve_host(hostnames_or_address)
+    [hostnames_or_address].flatten.map{|hostname_or_address|
+      begin
+        IPAddr.new(hostname_or_address)
+        next hostname_or_address
+      rescue IPAddr::InvalidAddressError
+        next get_host(hostname_or_address)[:address]
+      end
+      raise Exception.new("host object not found #{hostname_or_address}") if @address.nil?
+    }
+  end
+
+  def resolve_port(ports_or_portranges_or_portnames, protocol: nil, type:)
+    result_ports = []
+    result_protocol = nil
+    tmp = [ports_or_portranges_or_portnames].flatten().map{|port_or_portrange_or_portname|
+      if %r"\A\d+\z|\A\d+-\d+\z" =~ port_or_portrange_or_portname
+        next {prortname: nil, port: port_or_portrange_or_portname, protocol: nil}
+      else
+        next get_port(port_or_portrange_or_portname)
+      end
+    }
+    result_ports = tmp.map{|e| e[:port] }
+    return result_ports if type == :src
+
+    protocols = []
+    protocols << protocol
+    protocols += tmp.map{|e| e[:protocol] }
+    protocols.reject!(&:nil?)
+    if protocols.uniq.count == 1
+      result_protocol = protocols.first
+    else
+      raise Exception.new("protocols does not same #{protocols}")
+    end
+    return [result_ports, result_protocol]
   end
 end
 

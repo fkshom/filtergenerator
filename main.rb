@@ -1,5 +1,6 @@
 require 'yaml'
-require_relative "lib/filtergen/filtergen"
+require_relative "lib/filtergen"
+
 def main()
   l_interfaces = YAML.load_file("interfaces.yml")
   l_definitions = YAML.load_file("definitions.yml")
