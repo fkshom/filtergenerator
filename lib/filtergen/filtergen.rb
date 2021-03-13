@@ -11,14 +11,15 @@ class Filtergen::Repository::HostObject
 end
 
 class Filtergen::Repository
-  attr_reader :rules
+  attr_reader :rules, :rules_object
   def initialize()
     @host_objects = []
     @port_objects = []
     @rules = []
+    @rules_object = []
   end
 
-  def add_host_object(**kwargs)
+  def add_host(**kwargs)
     @host_objects << {
       hostname: kwargs[:hostname],
       address:  kwargs[:address],
@@ -26,7 +27,7 @@ class Filtergen::Repository
     self
   end
 
-  def add_port_object(**kwargs)
+  def add_port(**kwargs)
     @port_objects << {
       portname: kwargs[:portname],
       protocol: kwargs[:protocol],
@@ -45,14 +46,15 @@ class Filtergen::Repository
       protocol: [kwargs[:protocol]].flatten(),
       action: kwargs[:action],
     }
+    @rules_object << Rule.new(**kwargs)
     self
   end
 
-  def get_host_object(hostname)
+  def get_host(hostname)
     @host_objects.select{|e| e[:hostname] == hostname }.first
   end
 
-  def get_port_object(portname)
+  def get_port(portname)
     @port_objects.select{|e| e[:portname] == portname }.first
   end
 end
@@ -67,23 +69,43 @@ class Host
 
     begin
       IPAddr.new(hostname_or_address)
-      @address = hostname_or_address
-      @hostname = nil
+      @address = hostname_or_address  # ipaddr
+      @hostname = hostname_or_address # ipaddr
     rescue IPAddr::InvalidAddressError
-      @address = repository.get_host_object(hostname_or_address)[:address]
-      @hostname = hostname_or_address
+      @address = repository.get_host(hostname_or_address)[:address] # ipaddr
+      @hostname = hostname_or_address # hostname
     end
 
     raise Exception.new("host object not found #{hostname_or_address}") if @address.nil?
   end
 end
 
-class HostObject < Host; end
-
 class Port
+  
 end
 
 class Rule
+  attr_reader :name, :src, :dst, :srcport, :dstport, :protocol, :action
+
+  def initialize(**kwargs)
+    @name = kwargs[:name] || nil
+    @src = [kwargs[:src]].flatten()
+    @dst = [kwargs[:dst]].flatten()
+    @srcport = [kwargs[:srcport]].flatten()
+    @dstport = [kwargs[:dstport]].flatten()
+    @protocol = [kwargs[:protocol]].flatten()
+    @action = kwargs[:action]
+  end
+
+  def src=(value)
+    @src = value
+    self
+  end
+
+  def src
+    @src.flatten.uniq
+  end
+
 end
 
 class Filtergen::Routers; end
@@ -95,7 +117,7 @@ module RuleOperatorModule
         IPAddr.new(hostname_or_address)
         next hostname_or_address
       rescue IPAddr::InvalidAddressError
-        next @repository.get_host_object(hostname_or_address)[:address]
+        next @repository.get_host(hostname_or_address)[:address]
       end
       raise Exception.new("host object not found #{hostname_or_address}") if @address.nil?
     }
@@ -108,7 +130,7 @@ module RuleOperatorModule
       if %r"\A\d+\z|\A\d+-\d+\z" =~ port_or_portrange_or_portname
         next {prortname: nil, port: port_or_portrange_or_portname, protocol: nil}
       else
-        next @repository.get_port_object(port_or_portrange_or_portname)
+        next @repository.get_port(port_or_portrange_or_portname)
       end
     }
     result_ports = tmp.map{|e| e[:port] }
@@ -175,7 +197,7 @@ class Filtergen::Routers::Router1
       @interfaces.each do |interface|
         rule = Marshal.load(Marshal.dump(p_rule))
         rule[:src] = rule[:src].select{|s| 
-          ho = HostObject.new(s, @repository)
+          ho = Host.new(s, @repository)
           IPAddr.new(interface[:address]).include?(IPAddr.new(ho.address))
         }
         filtername = interface[:filtername]
@@ -254,7 +276,7 @@ class Filtergen::Routers::VDSTF1
       @portgroups.each do |portgroup|
         rule = Marshal.load(Marshal.dump(p_rule))
         rule[:src] = rule[:src].select{|s| 
-          ho = HostObject.new(s, @repository)
+          ho = Host.new(s, @repository)
           IPAddr.new(portgroup[:address]).include?(IPAddr.new(ho.address))
         }
         dcname = portgroup[:dcname]

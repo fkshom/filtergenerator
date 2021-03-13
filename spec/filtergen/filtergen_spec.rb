@@ -8,6 +8,15 @@ describe Filtergen do
   end
 end
 
+describe Rule do
+  it "add src" do
+    rule = Rule.new(src: "192.168.0.1/32")
+    rule.src = rule.src + ["192.168.0.1/32"]
+    rule.src = rule.src + ["192.168.0.2/32"]
+    expect(rule.src).to eq(['192.168.0.1/32', '192.168.0.2/32'])
+  end
+end
+
 describe Filtergen::Repository do
   it "add rule" do
     repository = Filtergen::Repository.new()
@@ -126,12 +135,12 @@ describe Filtergen::Routers::Router1 do
 
   it "オブジェクト名を使用したシングルルールからfilterを生成できる" do
     repository = Filtergen::Repository.new()
-    repository.add_host_object(hostname: 'network0', address: '192.168.0.0/24')
-    repository.add_host_object(hostname: 'network1', address: '192.168.1.0/24')
-    repository.add_host_object(hostname: 'host0', address: '10.0.1.50/32')
-    repository.add_host_object(hostname: 'host1', address: '10.0.1.51/32')
-    repository.add_port_object(portname: 'udp53', protocol: 'udp', port: 53)
-    repository.add_port_object(portname: 'default_highport1', port: '32768-65535')
+    repository.add_host(hostname: 'network0', address: '192.168.0.0/24')
+    repository.add_host(hostname: 'network1', address: '192.168.1.0/24')
+    repository.add_host(hostname: 'host0', address: '10.0.1.50/32')
+    repository.add_host(hostname: 'host1', address: '10.0.1.51/32')
+    repository.add_port(portname: 'udp53', protocol: 'udp', port: 53)
+    repository.add_port(portname: 'default_highport1', port: '32768-65535')
     repository.add_rule(
       name: 'TERM1',
       src: 'network0',
@@ -160,12 +169,12 @@ describe Filtergen::Routers::Router1 do
 
   it "複数のインタフェースを持つルーターについて、該当インタフェースごとのfilterをオブジェクト名を使用したルールから生成できる" do
     repository = Filtergen::Repository.new()
-    repository.add_host_object(hostname: 'network0', address: '192.168.0.0/24')
-    repository.add_host_object(hostname: 'network1', address: '192.168.1.0/24')
-    repository.add_host_object(hostname: 'host0', address: '10.0.1.50/32')
-    repository.add_host_object(hostname: 'host1', address: '10.0.1.51/32')
-    repository.add_port_object(portname: 'udp53', protocol: 'udp', port: 53)
-    repository.add_port_object(portname: 'default_highport1', port: '32768-65535')
+    repository.add_host(hostname: 'network0', address: '192.168.0.0/24')
+    repository.add_host(hostname: 'network1', address: '192.168.1.0/24')
+    repository.add_host(hostname: 'host0', address: '10.0.1.50/32')
+    repository.add_host(hostname: 'host1', address: '10.0.1.51/32')
+    repository.add_port(portname: 'udp53', protocol: 'udp', port: 53)
+    repository.add_port(portname: 'default_highport1', port: '32768-65535')
     repository.add_rule(
       name: 'TERM1',
       src: ['network0', 'network1'],
@@ -207,12 +216,12 @@ describe Filtergen::Routers::Router1 do
 
   it "ルールを文字列に変換できる" do
     repository = Filtergen::Repository.new()
-    repository.add_host_object(hostname: 'network0', address: '192.168.0.0/24')
-    repository.add_host_object(hostname: 'network1', address: '192.168.1.0/24')
-    repository.add_host_object(hostname: 'host0', address: '10.0.1.50/32')
-    repository.add_host_object(hostname: 'host1', address: '10.0.1.51/32')
-    repository.add_port_object(portname: 'udp53', protocol: 'udp', port: 53)
-    repository.add_port_object(portname: 'default_highport1', port: '32768-65535')
+    repository.add_host(hostname: 'network0', address: '192.168.0.0/24')
+    repository.add_host(hostname: 'network1', address: '192.168.1.0/24')
+    repository.add_host(hostname: 'host0', address: '10.0.1.50/32')
+    repository.add_host(hostname: 'host1', address: '10.0.1.51/32')
+    repository.add_port(portname: 'udp53', protocol: 'udp', port: 53)
+    repository.add_port(portname: 'default_highport1', port: '32768-65535')
     data = {
       "irb100in"=>
       {"TERM1"=>
@@ -256,12 +265,12 @@ end
 describe Filtergen::Routers::VDSTF1 do
   it "複数のインタフェースを持つルーターについて、該当インタフェースごとのfilterをオブジェクト名を使用したルールから生成できる" do
     repository = Filtergen::Repository.new()
-    repository.add_host_object(hostname: 'network0', address: '192.168.0.0/24')
-    repository.add_host_object(hostname: 'network1', address: '192.168.1.0/24')
-    repository.add_host_object(hostname: 'host0', address: '10.0.1.50/32')
-    repository.add_host_object(hostname: 'host1', address: '10.0.1.51/32')
-    repository.add_port_object(portname: 'udp53', protocol: 'udp', port: 53)
-    repository.add_port_object(portname: 'default_highport1', port: '32768-65535')
+    repository.add_host(hostname: 'network0', address: '192.168.0.0/24')
+    repository.add_host(hostname: 'network1', address: '192.168.1.0/24')
+    repository.add_host(hostname: 'host0', address: '10.0.1.50/32')
+    repository.add_host(hostname: 'host1', address: '10.0.1.51/32')
+    repository.add_port(portname: 'udp53', protocol: 'udp', port: 53)
+    repository.add_port(portname: 'default_highport1', port: '32768-65535')
     repository.add_rule(
       name: 'TERM1',
       src: ['network0', 'network1'],
@@ -299,12 +308,12 @@ describe Filtergen::Routers::VDSTF1 do
 
   it "ルールをobjectに変換できる" do
     repository = Filtergen::Repository.new()
-    repository.add_host_object(hostname: 'network0', address: '192.168.0.0/24')
-    repository.add_host_object(hostname: 'network1', address: '192.168.1.0/24')
-    repository.add_host_object(hostname: 'host0', address: '10.0.1.50/32')
-    repository.add_host_object(hostname: 'host1', address: '10.0.1.51/32')
-    repository.add_port_object(portname: 'udp53', protocol: 'udp', port: 53)
-    repository.add_port_object(portname: 'default_highport1', port: '32768-65535')
+    repository.add_host(hostname: 'network0', address: '192.168.0.0/24')
+    repository.add_host(hostname: 'network1', address: '192.168.1.0/24')
+    repository.add_host(hostname: 'host0', address: '10.0.1.50/32')
+    repository.add_host(hostname: 'host1', address: '10.0.1.51/32')
+    repository.add_port(portname: 'udp53', protocol: 'udp', port: 53)
+    repository.add_port(portname: 'default_highport1', port: '32768-65535')
     data = {
       "vmdc01" => {
         "pg00" => [
@@ -474,12 +483,12 @@ end
 describe "e2e test" do
   it "a" do
     repository = Filtergen::Repository.new()
-    repository.add_host_object(hostname: 'network0', address: '192.168.0.0/24')
-    repository.add_host_object(hostname: 'network1', address: '192.168.1.0/24')
-    repository.add_host_object(hostname: 'host0', address: '10.0.1.50/32')
-    repository.add_host_object(hostname: 'host1', address: '10.0.1.51/32')
-    repository.add_port_object(portname: 'udp53', protocol: 'udp', port: 53)
-    repository.add_port_object(portname: 'default_highport1', port: '32768-65535')
+    repository.add_host(hostname: 'network0', address: '192.168.0.0/24')
+    repository.add_host(hostname: 'network1', address: '192.168.1.0/24')
+    repository.add_host(hostname: 'host0', address: '10.0.1.50/32')
+    repository.add_host(hostname: 'host1', address: '10.0.1.51/32')
+    repository.add_port(portname: 'udp53', protocol: 'udp', port: 53)
+    repository.add_port(portname: 'default_highport1', port: '32768-65535')
     repository.add_rule(
       name: 'TERM1',
       src: ['network0', 'network1'],
