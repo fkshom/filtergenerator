@@ -47,8 +47,8 @@ describe Filtergen::Routers::Router1 do
           src: ['192.168.0.0/24'],
           srcport: ['32768-65535'],
           dst: ['10.0.1.50/32'],
-          dstport: '53',
-          protocol: 'udp',
+          dstport: ['53'],
+          protocol: ['udp'],
           action: 'accept',
         }
       }
@@ -76,8 +76,8 @@ describe Filtergen::Routers::Router1 do
           src: ['192.168.0.0/24', '192.168.0.1/32'],
           srcport: ['32768-65535'],
           dst: ['10.0.1.50/32', '10.0.1.51/32'],
-          dstport: '53',
-          protocol: 'udp',
+          dstport: ['53'],
+          protocol: ['udp'],
           action: 'accept',
         }
       }
@@ -106,8 +106,8 @@ describe Filtergen::Routers::Router1 do
           src: ['192.168.0.0/24'],
           srcport: ['32768-65535'],
           dst: ['10.0.1.50/32', '10.0.1.51/32'],
-          dstport: '53',
-          protocol: 'udp',
+          dstport: ['53'],
+          protocol: ['udp'],
           action: 'accept',
         }
       },
@@ -116,8 +116,8 @@ describe Filtergen::Routers::Router1 do
           src: ['192.168.1.0/24'],
           srcport: ['32768-65535'],
           dst: ['10.0.1.50/32', '10.0.1.51/32'],
-          dstport: '53',
-          protocol: 'udp',
+          dstport: ['53'],
+          protocol: ['udp'],
           action: 'accept',
         }
       }
@@ -150,8 +150,8 @@ describe Filtergen::Routers::Router1 do
           src: ['network0'],
           srcport: ['32768-65535'],
           dst: ['host0'],
-          dstport: 'udp53',
-          protocol: nil,
+          dstport: ['udp53'],
+          protocol: [nil],
           action: 'accept',
         }
       }
@@ -187,8 +187,8 @@ describe Filtergen::Routers::Router1 do
           src: ['network0'],
           srcport: ['32768-65535'],
           dst: ['host0', 'host1'],
-          dstport: '53',
-          protocol: 'udp',
+          dstport: ['53'],
+          protocol: ['udp'],
           action: 'accept',
         }
       },
@@ -197,8 +197,8 @@ describe Filtergen::Routers::Router1 do
           src: ['network1'],
           srcport: ['32768-65535'],
           dst: ['host0', 'host1'],
-          dstport: '53',
-          protocol: 'udp',
+          dstport: ['53'],
+          protocol: ['udp'],
           action: 'accept',
         }
       }
@@ -282,15 +282,15 @@ describe Filtergen::Routers::VDSTF1 do
         "pg00" => [
           { desc: "TERM1", 
             src: ["network0"], dst: ['host0', 'host1'],
-            srcport: ['32768-65535'], dstport: '53',
-            protocol: 'udp', action: 'accept'
+            srcport: ['32768-65535'], dstport: ['53'],
+            protocol: ['udp'], action: 'accept'
           }
         ],
         "pg01" => [
           { desc: "TERM1", 
             src: ["network1"], dst: ['host0', 'host1'],
-            srcport: ['32768-65535'], dstport: '53',
-            protocol: 'udp', action: 'accept'
+            srcport: ['32768-65535'], dstport: ['53'],
+            protocol: ['udp'], action: 'accept'
           },
         ]
       }
@@ -357,7 +357,7 @@ describe Filtergen::Routers::VDSTF1 do
     })
   end
 
-  it "複数のルールの重複を排除する" do
+  it "複数のルールをまとめる" do
     repository = Filtergen::Repository.new()
     repository.add_rule(
       name: 'TERM1',
@@ -390,22 +390,42 @@ describe Filtergen::Routers::VDSTF1 do
     router.assign_interface(interfacename: 'irb100', filtername: 'irb100in', direction: 'in', address: '192.168.0.1/24')
     router.set_repository(repository)
 
-    actual = router.aggregate_rules(target: [:dstport, :protocol])
+    actual = router.aggregate_rules(by: [:dstport, :protocol])
     expect(actual).to eq([
       { name: 'TERM1',
         src: ['192.168.0.2/32', '192.168.0.3/32'],
         srcport: ['32768-65535'],
         dst: ['10.0.1.50/32', '10.0.1.51/32'],
-        dstport: '53',
-        protocol: 'udp',
+        dstport: ['53'],
+        protocol: ['udp'],
         action: 'accept',
       },
       { name: 'TERM1',
         src: ['192.168.0.3/32'],
         srcport: ['32768-65535'],
         dst: ['10.0.1.51/32'],
-        dstport: '53',
-        protocol: 'tcp',
+        dstport: ['53'],
+        protocol: ['tcp'],
+        action: 'accept',
+      },
+    ])
+
+    actual = router.aggregate_rules(by: [:src])
+    expect(actual).to eq([
+      { name: 'TERM1',
+        src: ['192.168.0.2/32'],
+        srcport: ['32768-65535'],
+        dst: ['10.0.1.50/32'],
+        dstport: ['53'],
+        protocol: ['udp'],
+        action: 'accept',
+      },
+      { name: 'TERM1',
+        src: ['192.168.0.3/32'],
+        srcport: ['32768-65535'],
+        dst: ['10.0.1.51/32'],
+        dstport: ['53'],
+        protocol: ['tcp', 'udp'],
         action: 'accept',
       },
     ])

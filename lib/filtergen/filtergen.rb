@@ -41,8 +41,8 @@ class Filtergen::Repository
       src: [kwargs[:src]].flatten(),
       dst: [kwargs[:dst]].flatten(),
       srcport: [kwargs[:srcport]].flatten(),
-      dstport: kwargs[:dstport],
-      protocol: kwargs[:protocol],
+      dstport: [kwargs[:dstport]].flatten(),
+      protocol: [kwargs[:protocol]].flatten(),
       action: kwargs[:action],
     }
     self
@@ -126,13 +126,16 @@ module RuleOperatorModule
     return [result_ports, result_protocol]
   end
 
-  def aggregate_rules(target: [:dstport, :protocol])
+  def aggregate_rules(by: [:dstport, :protocol])
     return @repository.rules.each_with_object([]) do |rule, acc|
-      if ev = acc.detect{|ev| ev[:dstport] == rule[:dstport] && ev[:protocol] == rule[:protocol] }
+      if ev = acc.detect{|ev| by.all?{|t| ev[t] == rule[t] } }
         ev.merge!( rule.merge(
           src: [ev[:src], rule[:src]].flatten.uniq,
           dst: [ev[:dst], rule[:dst]].flatten.uniq,
           srcport: [rule[:srcport], ev[:srcport]].flatten.uniq,
+          dstport: [rule[:dstport], ev[:dstport]].flatten.uniq,
+          protocol: [rule[:protocol], ev[:protocol]].flatten.uniq,
+          action: rule[:action],
           ) )
       else
         acc << rule.dup
