@@ -1,4 +1,6 @@
 require 'ipaddr'
+require 'forwardable'
+
 class Filtergen::Repository; end
 
 class Filtergen::Repository
@@ -7,11 +9,11 @@ class Filtergen::Repository
 
     def initialize(**kwargs)
       @name = kwargs[:name] || nil
-      @src = [kwargs[:src]].flatten()
-      @dst = [kwargs[:dst]].flatten()
-      @srcport = [kwargs[:srcport]].flatten()
-      @dstport = [kwargs[:dstport]].flatten()
-      @protocol = [kwargs[:protocol]].flatten()
+      @src = [kwargs[:src]].compact.flatten
+      @dst = [kwargs[:dst]].compact.flatten
+      @srcport = [kwargs[:srcport]].compact.flatten
+      @dstport = [kwargs[:dstport]].compact.flatten
+      @protocol = [kwargs[:protocol]].compact.flatten
       @action = kwargs[:action]
     end
 
@@ -23,6 +25,71 @@ class Filtergen::Repository
     def src
       @src.flatten.uniq
     end
+
+    def to_h
+      return ({
+        name: @name,
+        src: @src,
+        srcport: @srcport,
+        dst: @dst,
+        dstport: @dstport,
+        protocol: @protocol,
+        action: @action,
+      })
+    end
+  end
+
+  class Rules
+    extend Forwardable
+    include Enumerable
+    def_delegators :@rules, :each
+
+    def initialize
+      @rules = []
+    end
+
+    def <<(rule)
+      @rules << rule
+    end
+
+    def flatten_grep(target: :src)
+      def combine_arrays(*arrays)
+        if arrays.empty?
+          yield
+        else
+          first, *rest = arrays
+          first.map do |x|
+            combine_arrays(*rest) {|*args| yield x, *args }
+          end.flatten
+            #.flatten(1)
+        end
+      end
+
+      @rules.each do |rule|
+        result_src = []
+        rule = rule.to_h
+        name = rule[:name]
+        src = rule[:src]
+        dst = rule[:dst]
+        srcport = rule[:srcport]
+        dstport, protocol = rule[:dstport], rule[:protocol]
+        src = [src].flatten()
+        dst = [dst].flatten()
+        srcport = [srcport].flatten()
+        dstport = [dstport].flatten()
+        combine_arrays(src){|s|
+          ret = yield ({
+            name: "#{name}",
+            src: s, dst: dst,
+            srcport: srcport, dstport: dstport,
+            protocol: protocol, action: rule[:action]
+          })
+          result_src << s if ret
+        }
+      end
+      
+    end
+
   end
 end
 
