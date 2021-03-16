@@ -169,6 +169,7 @@ class Filtergen::Repository
     protocols = []
     protocols << protocol
     protocols += tmp.map{|e| e[:protocol] }
+    protocols.flatten!
     protocols.reject!(&:nil?)
     if protocols.uniq.count == 1
       result_protocol = protocols.first

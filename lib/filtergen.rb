@@ -1,11 +1,10 @@
 
-
 module Filtergen
   VERSION = "0.0.1"
 
-  autoload :Logger, 'filtergen/logger'
-  autoload :Routers, 'filtergen/routers'
-  autoload :Repository, 'filtergen/repository'
+  # autoload :Logger, 'filtergen/logger'
+  # autoload :Routers, 'filtergen/routers'
+  # autoload :Repository, 'lib/filtergen/repository'
   class << self
     def logger
       @logger ||= Filtergen::Logger.new.create
@@ -24,3 +23,7 @@ module Filtergen
     end
   end
 end
+
+require_relative './filtergen/logger'
+require_relative './filtergen/routers'
+require_relative './filtergen/repository'
