@@ -7,3 +7,11 @@ router1:
   filtername: irb110in
   direction: in
   address: 192.168.1.1/24
+vdstf1:
+- dcname: dc01
+  pgname: pg01
+  address: 192.168.0.0/24
+- dcname: dc01
+  pgname: pg02
+  address: 192.168.1.0/24
+  

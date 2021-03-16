@@ -90,9 +90,20 @@ def main()
   pp rules.class
   pp rules.to_h
   pp rules.to_s
-  # data = router.create_filter_configuration_data()
-  # pp(data)
-  # puts router.convert_from_data_to_filter_string(data).join("\n")
+
+  router = Filtergen::Routers::VDSTF1.new()
+  router.set_repository(repository)
+
+  (l_interfaces['vdstf1'] || []).each do |interface|
+    router.assign_portgroup(dcname: interface['dcname'], portgroupname: interface['pgname'],
+      address: interface['address'])
+  end
+
+  rules = router.create_router_rules()
+  pp rules.class
+  pp rules.to_h
+  pp rules.to_s
+  pp rules.to_yaml
 end
 
 if __FILE__ == $0
