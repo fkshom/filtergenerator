@@ -29,7 +29,7 @@ describe Filtergen::Routers::Router1 do
     router = Filtergen::Routers::Router1.new()
     router.assign_interface(interfacename: 'irb100', filtername: 'irb100in', direction: 'in', address: '192.168.0.1/24')
     router.set_repository(repository)
-    actual = router.create_filter_configuration_data()
+    actual = router.create_router_rules().to_h
     expect(actual).to eq({
       "irb100in" => {
         "TERM1" => {
@@ -58,7 +58,7 @@ describe Filtergen::Routers::Router1 do
     router = Filtergen::Routers::Router1.new()
     router.assign_interface(interfacename: 'irb100', filtername: 'irb100in', direction: 'in', address: '192.168.0.1/24')
     router.set_repository(repository)
-    actual = router.create_filter_configuration_data()
+    actual = router.create_router_rules().to_h
     expect(actual).to eq({
       "irb100in" => {
         "TERM1" => {
@@ -88,7 +88,7 @@ describe Filtergen::Routers::Router1 do
     router.assign_interface(interfacename: 'irb100', filtername: 'irb100in', direction: 'in', address: '192.168.0.1/24')
     router.assign_interface(interfacename: 'irb110', filtername: 'irb110in', direction: 'in', address: '192.168.1.1/24')
     router.set_repository(repository)
-    actual = router.create_filter_configuration_data()
+    actual = router.create_router_rules().to_h
     expect(actual).to eq({
       "irb100in" => {
         "TERM1" => {
@@ -132,7 +132,7 @@ describe Filtergen::Routers::Router1 do
     router = Filtergen::Routers::Router1.new()
     router.assign_interface(interfacename: 'irb100', filtername: 'irb100in', direction: 'in', address: '192.168.0.1/24')
     router.set_repository(repository)
-    actual = router.create_filter_configuration_data()
+    actual = router.create_router_rules().to_h
     expect(actual).to eq({
       "irb100in" => {
         "TERM1" => {
@@ -169,7 +169,7 @@ describe Filtergen::Routers::Router1 do
     router.assign_interface(interfacename: 'irb110', filtername: 'irb110in', direction: 'in', address: '192.168.1.1/24')
     router.set_repository(repository)
 
-    actual = router.create_filter_configuration_data()
+    actual = router.create_router_rules().to_h
     expect(actual).to eq({
       "irb100in" => {
         "TERM1" => {
@@ -202,27 +202,21 @@ describe Filtergen::Routers::Router1 do
     repository.add_host(hostname: 'host1', address: '10.0.1.51/32')
     repository.add_port(portname: 'udp53', protocol: 'udp', port: 53)
     repository.add_port(portname: 'default_highport1', port: '32768-65535')
-    data = {
-      "irb100in"=>
-      {"TERM1"=>
-        {:src=>["network0"],
-         :dst=>["host0", "host1"],
-         :srcport=>["32768-65535"],
-         :dstport=>"53",
-         :protocol=>"udp",
-         :action=>"accept"}},
-     "irb110in"=>
-      {"TERM1"=>
-        {:src=>["network1"],
-         :dst=>["host0", "host1"],
-         :srcport=>["32768-65535"],
-         :dstport=>"udp53",
-         :action=>"accept"}}
-    }
+    repository.add_rule(
+      name: 'TERM1',
+      src: ['network0', 'network1'],
+      srcport: '32768-65535',
+      dst: ['host0', 'host1'],
+      dstport: '53',
+      protocol: 'udp',
+      action: 'accept'
+    )
 
     router = Filtergen::Routers::Router1.new()
+    router.assign_interface(interfacename: 'irb100', filtername: 'irb100in', direction: 'in', address: '192.168.0.1/24')
+    router.assign_interface(interfacename: 'irb110', filtername: 'irb110in', direction: 'in', address: '192.168.1.1/24')
     router.set_repository(repository)
-    actual = router.convert_from_data_to_filter_string(data)
+    actual = router.create_router_rules().to_a
     expect(actual).to eq([
       "set firewall filter irb100in term TERM1 source-address 192.168.0.0/24",
       "set firewall filter irb100in term TERM1 destination-address 10.0.1.50/32",
@@ -265,7 +259,7 @@ describe Filtergen::Routers::VDSTF1 do
     vdstf.assign_portgroup(dcname: 'vmdc01', portgroupname: 'pg01', address: '192.168.1.1/24')
     vdstf.set_repository(repository)
 
-    actual = vdstf.create_filter_configuration_data()
+    actual = vdstf.create_router_rules().to_h
     expect(actual).to eq({
       "vmdc01" => {
         "pg00" => [
@@ -294,28 +288,21 @@ describe Filtergen::Routers::VDSTF1 do
     repository.add_host(hostname: 'host1', address: '10.0.1.51/32')
     repository.add_port(portname: 'udp53', protocol: 'udp', port: 53)
     repository.add_port(portname: 'default_highport1', port: '32768-65535')
-    data = {
-      "vmdc01" => {
-        "pg00" => [
-          { desc: "TERM1", 
-            src: ["network0"], dst: ['host0', 'host1'],
-            srcport: ['32768-65535'], dstport: '53',
-            protocol: 'udp', action: 'accept'
-          }
-        ],
-        "pg01" => [
-          { desc: "TERM1", 
-            src: ["network1"], dst: ['host0', 'host1'],
-            srcport: ['32768-65535'], dstport: '53',
-            protocol: 'udp', action: 'accept'
-          },
-        ]
-      }
-    }
+    repository.add_rule(
+      name: 'TERM1',
+      src: ['network0', 'network1'],
+      srcport: '32768-65535',
+      dst: ['host0', 'host1'],
+      dstport: '53',
+      protocol: 'udp',
+      action: 'accept'
+    )
 
     vdstf = Filtergen::Routers::VDSTF1.new()
+    vdstf.assign_portgroup(dcname: 'vmdc01', portgroupname: 'pg00', address: '192.168.0.1/24')
+    vdstf.assign_portgroup(dcname: 'vmdc01', portgroupname: 'pg01', address: '192.168.1.1/24')
     vdstf.set_repository(repository)
-    actual = vdstf.convert_from_data_to_filter_string(data)
+    actual = vdstf.create_router_rules().to_yaml
     expect(actual).to eq({
       "vmdc01" => {
         "pg00" => [
