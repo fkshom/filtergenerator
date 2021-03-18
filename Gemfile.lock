@@ -116,6 +116,7 @@ DEPENDENCIES
   rspec
   solargraph
   super_diff
+  thor
 
 BUNDLED WITH
    2.2.3

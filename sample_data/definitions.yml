@@ -22,3 +22,9 @@ rule:
   srcport: default_highport1
   dstport: udp53
   action: accept
+- name: TERM1
+  src: ['network0', 'network1']
+  dst: ['host0', 'host1']
+  srcport: default_highport1
+  dstport: udp53
+  action: accept

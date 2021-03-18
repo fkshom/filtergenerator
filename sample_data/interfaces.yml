@@ -7,6 +7,15 @@ router1:
   filtername: irb110in
   direction: in
   address: 192.168.1.1/24
+router2:
+- interfacename: irb200
+  filtername: irb200in
+  direction: in
+  address: 192.168.2.1/24
+- interfacename: irb210
+  filtername: irb210in
+  direction: in
+  address: 192.168.3.1/24
 vdstf1:
 - dcname: dc01
   pgname: pg01
@@ -14,4 +23,8 @@ vdstf1:
 - dcname: dc01
   pgname: pg02
   address: 192.168.1.0/24
-  
+router2:
+- interfacename: someif
+  filtername: ks
+  direction: in
+  address: 192.168.5.1/24
