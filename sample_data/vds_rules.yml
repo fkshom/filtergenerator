@@ -1,4 +1,4 @@
-hostObject:
+host:
 - hostname: network0
   address: 192.168.0.0/24
 - hostname: network1
@@ -8,7 +8,7 @@ hostObject:
 - hostname: host1
   address: 10.0.1.51/32
 
-portObject:
+port:
 - portname: udp53
   protocol: udp
   port: 53
