@@ -1,0 +1,28 @@
+routers:
+  - routername: router1
+    interfacename: irb100
+    filtername: irb100in
+    direction: in
+    address: 192.168.100.1/24
+  - routername: router1
+    interfacename: irb110
+    filtername: irb110in
+    direction: in
+    address: 192.168.110.1/24
+  - routername: router2
+    interfacename: irb200
+    filtername: irb200in
+    direction: in
+    address: 192.168.200.1/24
+  - routername: router2
+    interfacename: irb210
+    filtername: irb210in
+    direction: in
+    address: 192.168.210.1/24
+vdses:
+  - dcname: dc01
+    pgname: pg10
+    address: 10.0.10.0/24
+  - dcname: dc01
+    pgname: pg11
+    address: 10.0.11.0/24

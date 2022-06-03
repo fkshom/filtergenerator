@@ -1,0 +1,3 @@
+permit, udp,  host100, 192.168.100.1/32, any, host110, 192.168.110.1/32, any, forward
+permit, tcp,  host10,  10.0.10.1/32,     any, host110, 192.168.110.1/32, any, both
+permit, tcp,  host10,  192.168.100.1/32, any, host110, 10.0.10.1/32, any, both
