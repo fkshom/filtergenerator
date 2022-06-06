@@ -5,6 +5,8 @@ import argparse
 from pprint import pp as pp
 import glob
 
+import yaml
+
 def dict_slice(_dict, keys):
     result = {}
     for key in keys:
@@ -20,7 +22,7 @@ def dict_except(_dict, keys):
 
 
 class Rule:
-    headers = ['action', 'prot', 'srchost', 'srcip', 'srcport', 'dsthost', 'dstip', 'dstport']
+    headers = ['desc', 'action', 'prot', 'srcip', 'srcport', 'dstip', 'dstport', 'comment']
 
     def __init__(self, *args, **kwargs):
         if args:
@@ -41,6 +43,12 @@ class Rule:
 
     def __getitem__(self, key):
         return self.rule[key]
+
+    def __repr__(self):
+        return self.rule.__repr__()
+
+    def __str__(self):
+        return self.rule.__str__()
 
 
 class RouterFilterGenerator:
@@ -122,8 +130,15 @@ class VdsFilterGenerator:
         # anyルールは記載なし。
 
     def is_under_my_control(self, rule):
-        srcip = ipaddress.ip_network(rule['srcip'])
-        dstip = ipaddress.ip_network(rule['dstip'])
+        if rule['srcip'].lower() == "any":
+            srcip = ipaddress.ip_network("0.0.0.0/0")
+        else:
+            srcip = ipaddress.ip_network(rule['srcip'])
+        if rule['dstip'].lower() == "any":
+            dstip = ipaddress.ip_network("0.0.0.0/0")
+        else:
+            dstip = ipaddress.ip_network(rule['dstip'])
+
         mysubnet = ipaddress.ip_network(self.mysubnet)
         if srcip.subnet_of(mysubnet) or dstip.subnet_of(mysubnet):
             return True
@@ -133,9 +148,8 @@ class VdsFilterGenerator:
         if not self.is_under_my_control(rule):
             return None
 
-        return dict(
-            desc="",
-            **dict_slice(rule, ['action', 'prot', 'srcip', 'srcport', 'dstip', 'dstport'])
+        return Rule(
+            **dict_slice(rule, ['desc', 'action', 'prot', 'srcip', 'srcport', 'dstip', 'dstport', 'comment'])
         )
 
     def generate_rules_from(self, rules):
@@ -153,30 +167,50 @@ class VdsFilterGenerator:
 
         return myrules
 
+class VdsFilterDenySameSubnet:
+    def generate_rules_from(self, info, rules):
+        myrules = rules
+        myrules.append(Rule(
+            desc='drop_mysubnet_mysubnet_any',
+            action='drop',
+            prot='any',
+            srcip=info['mysubnet'],
+            srcport='any',
+            dstip=info['mysubnet'],
+            dstport='any',
+            comment='',
+        ))
+        return myrules
+
 class VdsFilterOutputAnyAccept:
     def generate_rules_from(self, info, rules):
         myrules = []
-        myrules.append(dict(
-            action='accept',
-            prot='any',
-            srchost=info['mysubnet'],
-            srcport='any',
-            dsthost='0.0.0.0/0',
-            dstport='any',
-        ))
         for rule in rules:
             srcip = ipaddress.ip_network(rule['srcip'])
             mysubnet = ipaddress.ip_network(info['mysubnet'])
-            if srcip.subnet_of(mysubnet):
+            if rule['action'] == 'accept' and srcip.subnet_of(mysubnet):
                 # 自分から外に出ているルールである
                 continue
             else:
                 myrules.append(rule)
+        myrules.append(Rule(
+            desc='permit_mysubnet_int_any',
+            action='accept',
+            prot='any',
+            srcip=info['mysubnet'],
+            srcport='any',
+            dstip='0.0.0.0/0',
+            dstport='any',
+            comment='',
+        ))
+
         return myrules
 
+def split_desctiption(desc):
+    return desc.split("_")
 
 def main(args=None):
-    rules_header = ['action', 'prot', 'srchost', 'srcip', 'srcport', 'dsthost', 'dstip', 'dstport', 'direction']
+    rules_header = ['desc', 'drop', 'prot', 'srcip', 'srcport', 'dstip', 'dstport', 'comment']
 
     for rulefile in sorted(glob.glob("data/rules/*.csv")):
         with open(rulefile, 'r') as f:
@@ -185,18 +219,36 @@ def main(args=None):
             for row in reader:
                 stripped_row = map(lambda v: v.strip(), row)
                 dicted_row = dict(zip(rules_header, stripped_row))
-                excepted_row = dict_except(dicted_row, 'direction')
+                action, srchost, dsthost, prot = split_desctiption(dicted_row['desc'])
+                dicted_row['action'] = 'accept' if dicted_row['drop'] == "" else "drop"
+                excepted_row = dicted_row
                 rules.append(Rule(**excepted_row))
 
-    vds = VdsFilterGenerator(mysubnet="10.0.10.0/24", flavors=[
-        VdsFilterOutputAnyAccept(),
-    ])
-    vds_rules = vds.generate_rules_from(rules)
-    # pp(vds_rules)
+    with open("data/interfaces.yml", 'r') as f:
+        interface_config = yaml.safe_load(f)
 
-    router = RouterFilterGenerator(mysubnet="192.168.100.1/24", interfacename="irb100", direction="in", filtername="irb100in")
-    router_rules = router.generate_rules_from(rules)
-    pp(router_rules)
+    # 順番が大切
+    candidate_flavors = [
+        ("VdsFilterDenySameSubnet", VdsFilterDenySameSubnet),
+        ("VdsFilterOutputAnyAccept", VdsFilterOutputAnyAccept),
+    ]
+
+    for vds in interface_config['vdses']:
+        dcpg_name = f"{vds['dcname']}_{vds['pgname']}"
+        mysubnet = vds['address']
+        print(dcpg_name, f"({mysubnet})")
+        flavors = []
+        for flavor_name, flavor_class in candidate_flavors:
+            if vds['flavors'].get(flavor_name, False) == True:
+                flavors.append(flavor_class())
+
+        vds = VdsFilterGenerator(mysubnet=mysubnet, flavors=flavors)
+        vds_rules = vds.generate_rules_from(rules)
+        pp(vds_rules)
+
+    # router = RouterFilterGenerator(mysubnet="192.168.100.1/24", interfacename="irb100", direction="in", filtername="irb100in")
+    # router_rules = router.generate_rules_from(rules)
+    # pp(router_rules)
 
 
 if __name__ == "__main__":

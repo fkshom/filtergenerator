@@ -23,6 +23,12 @@ vdses:
   - dcname: dc01
     pgname: pg10
     address: 10.0.10.0/24
+    flavors:
+      VdsFilterDenySameSubnet: true
+      VdsFilterOutputAnyAccept: true
   - dcname: dc01
     pgname: pg11
     address: 10.0.11.0/24
+    flavors:
+      VdsFilterDenySameSubnet: false
+      VdsFilterOutputAnyAccept: true
