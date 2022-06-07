@@ -26,9 +26,11 @@ vdses:
     flavors:
       VdsFilterDenySameSubnet: true
       VdsFilterOutputAnyAccept: true
+      VdsFilterCleanup: true
   - dcname: dc01
     pgname: pg11
     address: 10.0.11.0/24
     flavors:
       VdsFilterDenySameSubnet: false
       VdsFilterOutputAnyAccept: true
+      VdsFilterCleanup: true
