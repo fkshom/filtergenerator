@@ -11,6 +11,7 @@ filter = "filtergenerator.cli:runfilter"
 [tool.poetry.dependencies]
 python = "^3.6"
 pyyaml = "^5.4.1"
+pytest-watch = "^4.2.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.2"

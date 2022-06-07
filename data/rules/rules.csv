@@ -1,4 +1,6 @@
-permit_host1_host2_udp,  , udp, 192.168.100.1/32, any, 192.168.110.1/32, any,  fwd, 50, comment1
-permit_host3_host2_tcp,  , tcp, 10.0.10.1/32,     any, 192.168.110.1/32, any, both, 50,
-permit_host1_host3_tcp,  , tcp, 192.168.100.1/32, any, 10.0.10.1/32,     any,     , 50, comment3
-permit_host1_hostx_tcp,  , tcp, 192.168.100.1/32, any, !10.0.0.0/8,      any, both, 50,
+permit_host1_host2_udp,         , udp, 192.168.0.1/32, any, 192.168.0.2/32, any, uni, 50, comment1
+permit_host3_host2_tcp,         , tcp, 10.0.0.1/32,    any, 192.168.0.2/32, any,  bi, 50,
+permit_host3_host3_tcp,         , tcp, 10.0.0.1/32,    any, 10.0.0.1/32,    any,  bi, 50,
+permit_host1_host3_tcp,         , tcp, 192.168.0.1/32, any, 10.0.0.1/32,    any,    , 50, comment3
+permit_host1_privatenw_tcp,     , tcp, 192.168.0.1/32, any, !192.168.0.0/24,any,  bi, 50,
+deny_host1_host4_tcp,       drop, tcp, 192.168.0.1/32, any, 192.168.0.4/32, any,  bi, 50,

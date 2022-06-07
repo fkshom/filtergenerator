@@ -27,7 +27,7 @@ class RuleBase:
         if args:
             stripped_row = map(lambda v: v.strip(), args)
             dicted_row = dict(zip(self.headers, stripped_row))
-            tmp = split_desctiption(dicted_row['desc'])
+            tmp = split_description(dicted_row['desc'])
             if len(tmp) == 4:
                 action, srchost, dsthost, prot, ret = [*tmp, None]
             elif len(tmp) == 5:
@@ -36,8 +36,6 @@ class RuleBase:
                 raise Exception()
 
             dicted_row['action'] = 'accept' if dicted_row['action'] == "" else "drop"
-            dicted_row['srcip'] = dicted_row['srcip'].replace("!", "")
-            dicted_row['dstip'] = dicted_row['dstip'].replace("!", "")
             self.rule = dicted_row
         elif kwargs:
             self.rule = kwargs
@@ -46,6 +44,70 @@ class RuleBase:
 
     def get(self, key, default):
         return self.rule.get(key, default)
+
+    def is_outgoing_from(self, subnet):
+        srcip = ipaddress.ip_network(self.srcip)
+        dstip = ipaddress.ip_network(self.dstip)
+        subnet = ipaddress.ip_network(subnet)
+
+        if not self.is_srcip_neg() and (srcip.subnet_of(subnet) or subnet.subnet_of(srcip)):
+            return True
+        elif self.is_srcip_neg() and not (srcip.subnet_of(subnet) or subnet.subnet_of(srcip)):
+            return True
+        else:
+            return False
+
+    def is_incoming_from(self, subnet):
+        srcip = ipaddress.ip_network(self.srcip)
+        dstip = ipaddress.ip_network(self.dstip)
+        subnet = ipaddress.ip_network(subnet)
+
+        if not self.is_dstip_neg() and (dstip.subnet_of(subnet) or subnet.subnet_of(dstip)):
+            return True
+        elif self.is_dstip_neg() and not (dstip.subnet_of(subnet) or subnet.subnet_of(dstip)):
+            return True
+        else:
+            return False
+
+    def is_nothing_from(self, subnet):
+        if not self.is_outgoing_from(subnet) and not self.is_incoming_from(subnet):
+            return True
+        else:
+            return False
+
+    def is_same_from(self, subnet):
+        if self.is_outgoing_from(subnet) and self.is_incoming_from(subnet):
+            return True
+        else:
+            return False
+
+    @property
+    def srcip(self):
+        srcip = self.rule['srcip'].replace("!", "")
+        if srcip.lower() == 'any':
+            return "0.0.0.0/0"
+        else:
+            return srcip
+
+    @property
+    def dstip(self):
+        dstip = self.rule['dstip'].replace("!", "")
+        if dstip.lower() == 'any':
+            return "0.0.0.0/0"
+        else:
+            return dstip
+
+    def is_srcip_neg(self):
+        if self.rule['srcip'].startswith("!"):
+            return True
+        else:
+            return False
+
+    def is_dstip_neg(self):
+        if self.rule['dstip'].startswith("!"):
+            return True
+        else:
+            return False
 
     def __getattr__(self, name):
         if name in self.rule:
@@ -71,7 +133,7 @@ class AggregatedRule(RuleBase):
 
     def expand(self):
         ret = []
-        if self.rule['direction'] in ['', 'both']:
+        if self.rule['direction'] in ['', 'bi']:
             tmp = copy.copy(self.rule)
             tmp = dict_except(tmp, ['direction'])
             ret.append(Rule(**tmp))
@@ -81,7 +143,7 @@ class AggregatedRule(RuleBase):
             tmp['srcport'], tmp['dstport'] = tmp['dstport'], tmp['srcport']
             tmp['desc'] = tmp['desc'] + "_RET"
             ret.append(Rule(**tmp))
-        elif self.rule['direction'] in ['fwd']:
+        elif self.rule['direction'] in ['uni']:
             tmp = copy.copy(self.rule)
             tmp = dict_except(tmp, ['direction'])
             ret.append(Rule(**tmp))
@@ -116,32 +178,14 @@ class UniversalRules:
 class VdsFilterGenerator:
     def __init__(self, mysubnet, flavors=[]):
         self.mysubnet = mysubnet
-        self.flavors = flavors
-        # anyルールは記載なし。
+        self._flavors = flavors
+        self.flavors = [flavor_class() for flavor_class in self._flavors]
 
     def is_under_my_control(self, rule):
-        if rule['srcip'].lower() == "any":
-            srcip = ipaddress.ip_network("0.0.0.0/0")
-        else:
-            try:
-                srcip = ipaddress.ip_network(rule['srcip'])
-            except:
-                pp(rule)
-                raise
-
-        if rule['dstip'].lower() == "any":
-            dstip = ipaddress.ip_network("0.0.0.0/0")
-        else:
-            try:
-                dstip = ipaddress.ip_network(rule['dstip'])
-            except:
-                pp(rule)
-                raise
-
-        mysubnet = ipaddress.ip_network(self.mysubnet)
-        if srcip.subnet_of(mysubnet) or dstip.subnet_of(mysubnet):
+        if rule.is_outgoing_from(self.mysubnet) or rule.is_incoming_from(self.mysubnet):
             return True
-        return False
+        else:
+            return False
 
     def generate_rules_from(self, rules):
         myrules = []
@@ -151,7 +195,7 @@ class VdsFilterGenerator:
 
         info = dict(
             mysubnet=self.mysubnet,
-            flavors=self.flavors,
+            flavors=self._flavors,
         )
         for flavor in self.flavors:
             myrules = flavor.generate_rules_from(info, myrules)
@@ -176,31 +220,7 @@ class VdsFilterDenySameSubnet:
 
 class VdsFilterOutputAnyAccept:
     def generate_rules_from(self, info, rules):
-        myrules = []
-        if VdsFilterDenySameSubnet not in info['flavors']:
-            # OUTPUTAnyAcceptが許可されており、同セグ通信が許可されているなら、自分から外に出るルールは削除してよい
-            for rule in rules:
-                srcip = ipaddress.ip_network(rule['srcip'])
-                mysubnet = ipaddress.ip_network(info['mysubnet'])
-                if rule['action'] == 'accept' and srcip.subnet_of(mysubnet):
-                    # 自分から外に出ているルールである
-                    continue
-                else:
-                    myrules.append(rule)
-        else:
-            # OUTPUTAnyAcceptが許可されているが、同セグ通信が禁止されているなら、自分から自分にでるルール以外は削除してよい
-            for rule in rules:
-                srcip = ipaddress.ip_network(rule['srcip'])
-                dstip = ipaddress.ip_network(rule['dstip'])
-                mysubnet = ipaddress.ip_network(info['mysubnet'])
-                if rule['action'] == 'accept':
-                    if srcip.subnet_of(mysubnet) and dstip.subnet_of(mysubnet):
-                        # 自分から自分にいくルールである
-                        myrules.append(rule)
-                    elif srcip.subnet_of(mysubnet) and not dstip.subnet_of(mysubnet):
-                        # 自分から外に行くルールである
-                        continue
-
+        myrules = rules
         myrules.append(Rule(
             desc='permit_mysubnet_int_any',
             action='accept',
@@ -215,21 +235,30 @@ class VdsFilterOutputAnyAccept:
 
         return myrules
 
-class _VdsFilterCleanup:
+class VdsFilterCleanup:
     def generate_rules_from(self, info, rules):
         myrules = []
-        for rule in rules:
-            srcip = ipaddress.ip_network(rule['srcip'])
-            mysubnet = ipaddress.ip_network(info['mysubnet'])
-            if rule['action'] == 'accept' and srcip.subnet_of(mysubnet):
-                # 自分から外に出ているルールである
-                continue
-            else:
-                myrules.append(rule)
+        mysubnet = info['mysubnet']
+        if VdsFilterDenySameSubnet in info['flavors']:
+            # OUTPUTAnyAcceptが許可されているが、同セグ通信が禁止されているなら、自分から自分にでるルール以外は削除してよい
+            for rule in rules:
+                if rule.is_same_from(mysubnet) or rule.is_incoming_from(mysubnet):
+                    # 同セグ通信である か 自分に入ってくるルールである
+                    myrules.append(rule)
+                elif rule.is_outgoing_from(mysubnet):
+                    # 自分から外に行くルールである
+                    continue
+        else:
+            # OUTPUTAnyAcceptが許可されており、同セグ通信が許可されているなら、自分から外に出るルールは削除してよい
+            for rule in rules:
+                if rule.is_outgoing_from(mysubnet):
+                    continue
+                else:
+                    myrules.append(rule)
 
-        return rules
+        return myrules
 
-def split_desctiption(desc):
+def split_description(desc):
     return desc.split("_")
 
 def main(args=None):
@@ -243,9 +272,9 @@ def main(args=None):
 
     # 順番が大切
     candidate_flavors = [
+        ("VdsFilterCleanup", VdsFilterCleanup),
         ("VdsFilterDenySameSubnet", VdsFilterDenySameSubnet),
         ("VdsFilterOutputAnyAccept", VdsFilterOutputAnyAccept),
-        # ("VdsFilterCleanup", VdsFilterCleanup)
     ]
 
     for vds in interface_config['vdses']:
@@ -255,7 +284,7 @@ def main(args=None):
         flavors = []
         for flavor_name, flavor_class in candidate_flavors:
             if vds['flavors'].get(flavor_name, False) == True:
-                flavors.append(flavor_class())
+                flavors.append(flavor_class)
 
         vds = VdsFilterGenerator(mysubnet=mysubnet, flavors=flavors)
         vds_rules = vds.generate_rules_from(rules)
