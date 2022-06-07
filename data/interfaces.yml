@@ -20,17 +20,19 @@ routers:
     direction: in
     address: 192.168.210.1/24
 vdses:
-  - dcname: dc01
+  - vcentername: vc1
+    dcname: dc01
     pgname: pg10
     address: 10.0.0.0/24
     flavors:
+      VdsFilterCleanup: true
       VdsFilterDenySameSubnet: true
       VdsFilterOutputAnyAccept: true
-      VdsFilterCleanup: true
-  - dcname: dc01
+  - vcentername: vc1
+    dcname: dc01
     pgname: pg11
     address: 192.168.0.0/24
     flavors:
+      VdsFilterCleanup: true
       VdsFilterDenySameSubnet: false
       VdsFilterOutputAnyAccept: true
-      VdsFilterCleanup: true

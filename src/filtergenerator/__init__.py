@@ -189,10 +189,13 @@ class VdsFilterGenerator:
 
     def generate_rules_from(self, rules):
         myrules = []
+
+        # 自分のPGに関係あるルールを抽出
         for rule in rules:
             if self.is_under_my_control(rule):
                 myrules.append(rule)
 
+        # フレーバー処理
         info = dict(
             mysubnet=self.mysubnet,
             flavors=self._flavors,
@@ -200,7 +203,11 @@ class VdsFilterGenerator:
         for flavor in self.flavors:
             myrules = flavor.generate_rules_from(info, myrules)
 
-        return myrules
+        # ソート
+        myrules2 = sorted(myrules, key=lambda x: x['action'], reverse=True)
+        myrules2 = sorted(myrules2, key=lambda x: x['prio'])
+
+        return myrules2
 
 class VdsFilterDenySameSubnet:
     def generate_rules_from(self, info, rules):
@@ -278,7 +285,7 @@ def main(args=None):
     ]
 
     for vds in interface_config['vdses']:
-        dcpg_name = f"{vds['dcname']}_{vds['pgname']}"
+        dcpg_name = f"{vds['vcentername']}_{vds['dcname']}_{vds['pgname']}"
         mysubnet = vds['address']
         print(dcpg_name, f"({mysubnet})")
         flavors = []
@@ -289,7 +296,8 @@ def main(args=None):
         vds = VdsFilterGenerator(mysubnet=mysubnet, flavors=flavors)
         vds_rules = vds.generate_rules_from(rules)
         pp(vds_rules)
-        # TODO: OutputAnyAcceptで、同セグ通信も消されてしまう
+
+
 
 
 if __name__ == "__main__":
