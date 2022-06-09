@@ -1,7 +1,48 @@
-from filtergenerator import Rule
+from filtergenerator import Rule, merge_rules
 
 
 class TestRule:
+    def testx1(self):
+        assert Rule(
+            action='',
+            prot='TCP',
+            srcip="192.168.0.1/32",
+            srcport='any',
+            dstip="10.0.0.0/24",
+            dstport=80,
+        ).contains(
+        Rule(
+            action='',
+            prot='TCP',
+            srcip="192.168.0.1/32",
+            srcport='any',
+            dstip="10.0.0.1/32",
+            dstport=80,
+        )) == True
+
+    def testx2(self):
+        rules = []
+        rules.append(Rule(
+            action='', prot='TCP', srcip="192.168.0.1/32", srcport='any', dstip="10.0.0.1/32", dstport=80,
+        ))
+        rules.append(Rule(
+            action='', prot='TCP', srcip="192.168.0.1/32", srcport='any', dstip="10.0.0.2/32", dstport=80,
+        ))
+        rules.append(Rule(
+            action='', prot='TCP', srcip="192.168.0.1/32", srcport='any', dstip="10.0.0.0/24", dstport=80,
+        ))
+        rules.append(Rule(
+            action='', prot='TCP', srcip="192.168.0.1/32", srcport='any', dstip="10.0.0.2/32", dstport=81,
+        ))
+        rules.append(Rule(
+            action='', prot='TCP', srcip="192.168.0.1/32", srcport='any', dstip="10.0.0.4/32", dstport=80,
+        ))
+        rules.append(Rule(
+            action='', prot='TCP', srcip="192.168.0.1/32", srcport='any', dstip="10.0.0.5/32", dstport=80,
+        ))
+        actual = merge_rules(rules)
+        assert len(actual) == 2
+
     def test1(self):
         rule = Rule(
             srcip="192.168.0.1/32",

@@ -8,6 +8,13 @@ import glob
 
 import yaml
 
+from logging import getLogger,NullHandler
+logger = getLogger(__name__)
+logger.addHandler(NullHandler())
+
+from logging import basicConfig, DEBUG
+basicConfig(level=DEBUG, format='[{levelname:.5}] {name}(L{lineno:3}): {message}', style='{')
+
 def dict_slice(_dict, keys):
     result = {}
     for key in keys:
@@ -21,6 +28,27 @@ def dict_except(_dict, keys):
             result[key] = value
     return result
 
+def merge_rules(rules):
+    # 後でソートするので、ここでは順番はぐちゃぐちゃになってよい
+    myrules = []
+    while True:
+        try:
+            rule_a = rules.pop(-1)
+            print(rule_a)
+            for i in reversed(range(len(rules))):
+                if rule_a.contains(rules[i]):
+                    print(f"rule contains {i}")
+                    del rules[i]
+                elif rules[i].contains(rule_a):
+                    print(f"{i} contains rule")
+                    break
+            else:
+                myrules.append(rule_a)
+            print(rules)
+        except IndexError:
+            break
+    myrules.extend(rules)
+    return myrules
 
 class RuleBase:
     def __init__(self, *args, **kwargs):
@@ -157,6 +185,18 @@ class Rule(RuleBase):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+    def contains(self, other):
+        if self['action'] == other['action'] \
+            and self['prot'] == other['prot'] \
+            and ipaddress.ip_network(self.srcip).supernet_of(ipaddress.ip_network(other.srcip)) \
+            and (self['srcport'] == other['srcport'] or str(self['srcport']).lower() == 'any') \
+            and ipaddress.ip_network(self.dstip).supernet_of(ipaddress.ip_network(other.dstip)) \
+            and (self['dstport'] == other['dstport'] or str(self['dstport']).lower() == 'any') \
+            and 1:
+            return True
+        else:
+            return False
 
 class UniversalRules:
     def load(self, filenames):
