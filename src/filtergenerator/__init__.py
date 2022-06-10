@@ -250,40 +250,56 @@ class VdsFilterGenerator:
         return myrules2
 
 class VdsFilterDenySameSubnet:
+    def __init__(self, config=dict()):
+        self.config = config
+
     def generate_rules_from(self, info, rules):
         myrules = rules
-        myrules.append(Rule(
-            desc='drop_mysubnet_mysubnet_any',
-            action='drop',
-            prot='any',
-            srcip=info['mysubnet'],
-            srcport='any',
-            dstip=info['mysubnet'],
-            dstport='any',
-            prio='90',
-            comment='',
-        ))
+        self.config.set_defaults('deny_protocols', ['ANY'])
+        self.config.set_defaults('src_ip', info['mysubnet'])
+        for deny_protocol in self.config['deny_protocols']:
+            myrules.append(Rule(
+                desc='drop_mysubnet_mysubnet_any',
+                action='drop',
+                prot=deny_protocol,
+                srcip=self.config['srcip'],
+                srcport='any',
+                dstip=self.config['srcip'],
+                dstport='any',
+                prio='90',
+                comment='',
+            ))
         return myrules
 
 class VdsFilterOutputAnyAccept:
+    def __init__(self, config=dict()):
+        self.config = config
+        self.config.set_defaults('deny_protocols', ['ANY'])
+
     def generate_rules_from(self, info, rules):
         myrules = rules
-        myrules.append(Rule(
-            desc='permit_mysubnet_int_any',
-            action='accept',
-            prot='any',
-            srcip=info['mysubnet'],
-            srcport='any',
-            dstip='0.0.0.0/0',
-            dstport='any',
-            prio='90',
-            comment='',
-        ))
+        self.config.set_defaults('deny_protocols', ['ANY'])
+        self.config.set_defaults('src_ip', info['mysubnet'])
+        for accept_protocol in self.config['accept_protocols']:
+            myrules.append(Rule(
+                desc='permit_mysubnet_int_any',
+                action='accept',
+                prot=accept_protocol,
+                srcip=self.config['srcip'],
+                srcport='any',
+                dstip='0.0.0.0/0',
+                dstport='any',
+                prio='90',
+                comment='',
+            ))
 
         return myrules
 
 class VdsFilterCleanup:
-    def generate_rules_from(self, info, rules):
+    def __init__(self, config=dict()):
+        self.config = config
+
+    def step1(self, info, rules):
         myrules = []
         mysubnet = info['mysubnet']
         if VdsFilterDenySameSubnet in info['flavors']:
@@ -305,6 +321,21 @@ class VdsFilterCleanup:
 
         return myrules
 
+    def step2(self, info, rules):
+        return rules
+
+    def step3(self, info, rules):
+        myrules = []
+
+        return myrules
+
+    def generate_rules_from(self, info, rules):
+        myrules = rules
+        myrules = self.step1(info, myrules)
+        myrules = self.step2(info, myrules)
+        myrules = self.step3(info, myrules)
+        return myrules
+
 def split_description(desc):
     return desc.split("_")
 
@@ -319,9 +350,9 @@ def main(args=None):
 
     # 順番が大切
     candidate_flavors = [
-        ("VdsFilterCleanup", VdsFilterCleanup),
         ("VdsFilterDenySameSubnet", VdsFilterDenySameSubnet),
         ("VdsFilterOutputAnyAccept", VdsFilterOutputAnyAccept),
+        ("VdsFilterCleanup", VdsFilterCleanup),
     ]
 
     for vds in interface_config['vdses']:
@@ -330,8 +361,19 @@ def main(args=None):
         print(dcpg_name, f"({mysubnet})")
         flavors = []
         for flavor_name, flavor_class in candidate_flavors:
-            if vds['flavors'].get(flavor_name, False) == True:
-                flavors.append(flavor_class)
+            config = vds['flavors'].get(flavor_name, False)
+            if type(config) == bool:
+                if config == True:
+                    flavors.append(flavor_class())
+            elif type(config) == dict:
+                if config.get('enabled', True) == True:
+                    flavors.append(flavor_class(config))
+            elif type(config) == list:
+                for _config in config:
+                    if _config.get('enabled', True) == True:
+                        flavors.append(flavor_class(_config))
+            else:
+                raise Exception(f'Unknown flavor_name {flavor_name}')
 
         vds = VdsFilterGenerator(mysubnet=mysubnet, flavors=flavors)
         vds_rules = vds.generate_rules_from(rules)

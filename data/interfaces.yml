@@ -26,8 +26,14 @@ vdses:
     address: 10.0.0.0/24
     flavors:
       VdsFilterCleanup: true
-      VdsFilterDenySameSubnet: true
-      VdsFilterOutputAnyAccept: true
+      VdsFilterDenySameSubnet:
+        - enable: true
+          deny_protocols: ["ANY"]
+          src_ip: 10.0.0.0/24
+      VdsFilterOutputAnyAccept:
+        - enable: true
+          accept_protocols: ["ANY"]
+          src_ip: 10.0.0.0/24
   - vcentername: vc1
     dcname: dc01
     pgname: pg11
